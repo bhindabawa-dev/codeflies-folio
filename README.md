@@ -62,7 +62,7 @@ GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 
 # Default Admin Account
-ADMIN_DEFAULT_EMAIL="admin@codeflies.com"
+ADMIN_DEFAULT_EMAIL="info@codeflies.com"
 ADMIN_DEFAULT_PASSWORD="admin123"
 ```
 
@@ -108,7 +108,7 @@ In the Vercel project settings under **Environment Variables**, add:
 - `NEXTAUTH_URL`: `https://folio.codeflies.com` (or your Vercel deployment URL).
 - `GOOGLE_CLIENT_ID`: Your Google OAuth client ID (from Google Cloud Console).
 - `GOOGLE_CLIENT_SECRET`: Your Google OAuth client secret.
-- `ADMIN_DEFAULT_EMAIL`: `admin@codeflies.com`
+- `ADMIN_DEFAULT_EMAIL`: `info@codeflies.com`
 
 ### Step 4: Click "Deploy"
 Vercel will build and deploy the application in under 60 seconds.

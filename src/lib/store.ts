@@ -96,7 +96,7 @@ const INITIAL_USERS: User[] = [
   {
     id: "user_admin",
     name: "Codeflies Admin",
-    email: "admin@codeflies.com",
+    email: "info@codeflies.com",
     role: "ADMIN",
     status: "ACTIVE",
     image: null,
@@ -365,6 +365,7 @@ export async function upsertUser(data: {
 }): Promise<User> {
   const normalized = data.email.toLowerCase().trim();
   const isAdminEmail =
+    normalized === "info@codeflies.com" ||
     normalized === "admin@codeflies.com" ||
     normalized.includes("admin@") ||
     normalized === (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase();

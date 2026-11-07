@@ -172,7 +172,7 @@ export function AuthModal({
                   <div className="text-xs font-semibold text-[#0b1c30] group-hover:text-[#5e35b1]">
                     Admin (Full Access & User Control)
                   </div>
-                  <div className="text-[11px] text-[#494453]">admin@codeflies.com</div>
+                  <div className="text-[11px] text-[#494453]">info@codeflies.com</div>
                 </div>
               </div>
               <span className="text-[11px] font-semibold text-[#5e35b1]">Login →</span>

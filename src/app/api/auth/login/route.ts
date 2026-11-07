@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     let targetStatus: "ACTIVE" | "REVOKED" | "PENDING" = "ACTIVE";
 
     if (demoRole === "admin") {
-      targetEmail = "admin@codeflies.com";
+      targetEmail = process.env.ADMIN_DEFAULT_EMAIL?.toLowerCase() || "info@codeflies.com";
       targetName = "Codeflies Admin";
       targetRole = "ADMIN";
       targetStatus = "ACTIVE";
