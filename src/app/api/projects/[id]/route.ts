@@ -8,9 +8,9 @@ export async function PUT(
 ) {
   try {
     const user = await getCurrentSession();
-    if (!user || user.role !== "ADMIN" || user.status !== "ACTIVE") {
+    if (!user || user.status !== "ACTIVE") {
       return NextResponse.json(
-        { error: "Unauthorized: Administrator privileges required to edit projects." },
+        { error: "Unauthorized: Active user account required to edit projects." },
         { status: 403 }
       );
     }

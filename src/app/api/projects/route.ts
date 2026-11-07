@@ -6,7 +6,17 @@ export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentSession();
 
-    if (user && user.status !== "ACTIVE") {
+    if (!user) {
+      return NextResponse.json(
+        {
+          error: "Authentication required. Please sign in to view portfolio projects.",
+          projects: [],
+        },
+        { status: 401 }
+      );
+    }
+
+    if (user.status !== "ACTIVE") {
       return NextResponse.json(
         {
           error: "Your access has been revoked or is pending administrator approval.",
@@ -59,9 +69,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentSession();
-    if (!user || user.role !== "ADMIN" || user.status !== "ACTIVE") {
+    if (!user || user.status !== "ACTIVE") {
       return NextResponse.json(
-        { error: "Unauthorized: Administrator privileges required to add projects." },
+        { error: "Unauthorized: Active user account required to add projects." },
         { status: 403 }
       );
     }

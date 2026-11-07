@@ -19,6 +19,7 @@ export function Header({
   onOpenAddProject,
   onLogout,
 }: HeaderProps) {
+  const canAddProject = Boolean(user && user.status === "ACTIVE");
   const isAdmin = user?.role === "ADMIN" && user?.status === "ACTIVE";
 
   return (
@@ -40,26 +41,26 @@ export function Header({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {isAdmin && (
-            <>
-              <button
-                onClick={onOpenAddProject}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5e35b1] text-white text-xs sm:text-sm font-semibold hover:bg-[#461599] transition-all shadow-sm active:scale-95"
-                title="Add New Portfolio Project"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Project</span>
-              </button>
+          {canAddProject && (
+            <button
+              onClick={onOpenAddProject}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5e35b1] text-white text-xs sm:text-sm font-semibold hover:bg-[#461599] transition-all shadow-sm active:scale-95"
+              title="Add New Portfolio Project"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Project</span>
+            </button>
+          )}
 
-              <button
-                onClick={onOpenAdmin}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#cbc3d5] text-[#0b1c30] text-xs sm:text-sm font-medium hover:border-[#5e35b1] hover:text-[#5e35b1] transition-all shadow-sm active:scale-95"
-                title="Manage Users & Access"
-              >
-                <Users className="w-4 h-4 text-[#5e35b1]" />
-                <span className="hidden sm:inline">User Access</span>
-              </button>
-            </>
+          {isAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#cbc3d5] text-[#0b1c30] text-xs sm:text-sm font-medium hover:border-[#5e35b1] hover:text-[#5e35b1] transition-all shadow-sm active:scale-95"
+              title="Manage Users & Access"
+            >
+              <Users className="w-4 h-4 text-[#5e35b1]" />
+              <span className="hidden sm:inline">User Access</span>
+            </button>
           )}
 
           {user ? (

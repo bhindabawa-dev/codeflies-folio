@@ -136,13 +136,106 @@ if (!globalData.inMemoryUsers) {
   globalData.inMemoryUsers = [...INITIAL_USERS];
 }
 
+let isSchemaInitialized = false;
+
+export async function ensureDatabaseSchema(): Promise<boolean> {
+  if (isSchemaInitialized) return true;
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl || dbUrl.includes("randompassword")) {
+    return false;
+  }
+
+  try {
+    // 1. Create Enums if they do not exist
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'Role') THEN
+          CREATE TYPE "Role" AS ENUM ('ADMIN', 'USER');
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'UserStatus') THEN
+          CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'REVOKED', 'PENDING');
+        END IF;
+      END$$;
+    `);
+
+    // 2. Create User table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT,
+        "email" TEXT NOT NULL UNIQUE,
+        "emailVerified" TIMESTAMP(3),
+        "image" TEXT,
+        "role" "Role" NOT NULL DEFAULT 'USER',
+        "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
+        "password" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // 3. Create Account table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Account" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "type" TEXT NOT NULL,
+        "provider" TEXT NOT NULL,
+        "providerAccountId" TEXT NOT NULL,
+        "refresh_token" TEXT,
+        "access_token" TEXT,
+        "expires_at" INTEGER,
+        "token_type" TEXT,
+        "scope" TEXT,
+        "id_token" TEXT,
+        "session_state" TEXT,
+        CONSTRAINT "Account_provider_providerAccountId_key" UNIQUE ("provider", "providerAccountId")
+      );
+    `);
+
+    // 4. Create Session table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Session" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "sessionToken" TEXT NOT NULL UNIQUE,
+        "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+        "expires" TIMESTAMP(3) NOT NULL
+      );
+    `);
+
+    // 5. Create Project table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Project" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "url" TEXT NOT NULL,
+        "description" TEXT,
+        "techStack" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+        "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+        "order" INTEGER NOT NULL DEFAULT 0,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    isSchemaInitialized = true;
+    return true;
+  } catch (err) {
+    console.warn("Schema initialization check warning:", err);
+    return false;
+  }
+}
+
 async function testDatabaseConnection(): Promise<boolean> {
-  if (process.env.DATABASE_URL?.includes("randompassword")) {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl || dbUrl.includes("randompassword")) {
     return false;
   }
   try {
-    // Quick probe
+    // Probe and initialize schema on connection
     await prisma.$queryRaw`SELECT 1`;
+    await ensureDatabaseSchema();
     return true;
   } catch {
     return false;
@@ -309,7 +402,7 @@ export async function getUsers(): Promise<User[]> {
         orderBy: { createdAt: "desc" },
       });
       if (dbUsers.length > 0) {
-        return dbUsers.map((u) => ({
+        const mappedUsers: User[] = dbUsers.map((u) => ({
           id: u.id,
           name: u.name,
           email: u.email,
@@ -318,6 +411,27 @@ export async function getUsers(): Promise<User[]> {
           status: u.status as UserStatus,
           createdAt: u.createdAt.toISOString(),
         }));
+        globalData.inMemoryUsers = mappedUsers;
+        return mappedUsers;
+      } else {
+        // Seed default initial users into DB
+        for (const u of INITIAL_USERS) {
+          try {
+            await prisma.user.create({
+              data: {
+                id: u.id,
+                name: u.name,
+                email: u.email.toLowerCase().trim(),
+                role: u.role,
+                status: u.status,
+                image: u.image,
+              },
+            });
+          } catch {
+            // Already created, ignore
+          }
+        }
+        return INITIAL_USERS;
       }
     } catch (err) {
       console.warn("Prisma getUsers failed, using memory:", err);
@@ -371,8 +485,9 @@ export async function upsertUser(data: {
     normalized === (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase();
 
   const defaultRole: UserRole = isAdminEmail ? "ADMIN" : (data.role || "USER");
-  // If admin email, always active; others default to ACTIVE or PENDING
+  // If admin email, always active; others default to ACTIVE
   const defaultStatus: UserStatus = isAdminEmail ? "ACTIVE" : (data.status || "ACTIVE");
+  const fallbackName = data.name || normalized.split("@")[0];
 
   const dbConnected = await testDatabaseConnection();
   if (dbConnected) {
@@ -380,18 +495,19 @@ export async function upsertUser(data: {
       const user = await prisma.user.upsert({
         where: { email: normalized },
         update: {
-          name: data.name,
-          image: data.image,
+          ...(data.name ? { name: data.name } : {}),
+          ...(data.image ? { image: data.image } : {}),
         },
         create: {
           email: normalized,
-          name: data.name,
+          name: fallbackName,
           image: data.image,
           role: defaultRole,
           status: defaultStatus,
         },
       });
-      return {
+
+      const returnedUser: User = {
         id: user.id,
         name: user.name,
         email: user.email,
@@ -400,6 +516,16 @@ export async function upsertUser(data: {
         status: user.status as UserStatus,
         createdAt: user.createdAt.toISOString(),
       };
+
+      // Keep in-memory cache synchronized
+      const existingIdx = globalData.inMemoryUsers?.findIndex((u) => u.email.toLowerCase() === normalized);
+      if (existingIdx !== undefined && existingIdx >= 0 && globalData.inMemoryUsers) {
+        globalData.inMemoryUsers[existingIdx] = returnedUser;
+      } else {
+        globalData.inMemoryUsers = [returnedUser, ...(globalData.inMemoryUsers || [])];
+      }
+
+      return returnedUser;
     } catch (err) {
       console.warn("Prisma upsertUser failed:", err);
     }
@@ -418,7 +544,7 @@ export async function upsertUser(data: {
   const newUser: User = {
     id: `user_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     email: normalized,
-    name: data.name || normalized.split("@")[0],
+    name: fallbackName,
     image: data.image || null,
     role: defaultRole,
     status: defaultStatus,
@@ -443,7 +569,7 @@ export async function updateUserAccess(
           ...(updates.status && { status: updates.status }),
         },
       });
-      return {
+      const returnedUser: User = {
         id: updated.id,
         name: updated.name,
         email: updated.email,
@@ -452,6 +578,13 @@ export async function updateUserAccess(
         status: updated.status as UserStatus,
         createdAt: updated.createdAt.toISOString(),
       };
+
+      const idx = globalData.inMemoryUsers?.findIndex((u) => u.id === id);
+      if (idx !== undefined && idx >= 0 && globalData.inMemoryUsers) {
+        globalData.inMemoryUsers[idx] = returnedUser;
+      }
+
+      return returnedUser;
     } catch (err) {
       console.warn("Prisma updateUserAccess failed:", err);
     }

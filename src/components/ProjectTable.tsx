@@ -30,6 +30,7 @@ export function ProjectTable({
   user,
 }: ProjectTableProps) {
   const isAdmin = user?.role === "ADMIN" && user?.status === "ACTIVE";
+  const canEdit = Boolean(user && user.status === "ACTIVE");
 
   if (projects.length === 0) {
     return (
@@ -181,24 +182,24 @@ export function ProjectTable({
                           <Copy className="w-4 h-4" />
                         </button>
 
-                        {isAdmin && (
-                          <>
-                            <button
-                              onClick={() => onEditProject(proj)}
-                              className="p-1.5 rounded-lg text-[#494453] hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Edit Project"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => onEditProject(proj)}
+                            className="p-1.5 rounded-lg text-[#494453] hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Edit Project"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
-                            <button
-                              onClick={() => onDeleteProject(proj)}
-                              className="p-1.5 rounded-lg text-[#494453] hover:text-red-600 hover:bg-red-50 transition-colors"
-                              title="Delete Project"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </>
+                        {isAdmin && (
+                          <button
+                            onClick={() => onDeleteProject(proj)}
+                            className="p-1.5 rounded-lg text-[#494453] hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Delete Project (Admin only)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         )}
                       </div>
                     </td>

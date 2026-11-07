@@ -2,6 +2,7 @@
 
 import { AccessDeniedView } from "@/components/AccessDeniedView";
 import { AdminUsersModal } from "@/components/AdminUsersModal";
+import { AnonymousGateView } from "@/components/AnonymousGateView";
 import { AuthModal } from "@/components/AuthModal";
 import { BatchActionBar, CopyFormat } from "@/components/BatchActionBar";
 import { Header } from "@/components/Header";
@@ -66,6 +67,12 @@ export default function PortfolioPage() {
       const res = await fetch("/api/projects");
       const data = await res.json();
 
+      if (res.status === 401) {
+        setProjects([]);
+        setAccessDenied(false);
+        return;
+      }
+
       if (res.status === 403) {
         setAccessDenied(true);
         if (data.user) setUser(data.user);
@@ -87,8 +94,12 @@ export default function PortfolioPage() {
   }, [showToast]);
 
   useEffect(() => {
-    fetchSession().then(() => {
-      fetchProjects();
+    fetchSession().then((currentUser) => {
+      if (currentUser && currentUser.status === "ACTIVE") {
+        fetchProjects();
+      } else {
+        setLoading(false);
+      }
     });
   }, [fetchSession, fetchProjects]);
 
@@ -325,8 +336,9 @@ export default function PortfolioPage() {
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
+    setProjects([]);
+    setSelectedIds(new Set());
     showToast("Signed Out", "You have been logged out.", "info");
-    fetchProjects();
   };
 
   return (
@@ -348,7 +360,17 @@ export default function PortfolioPage() {
 
       {/* Main Content Area */}
       <main className="flex-1 pt-16">
-        {accessDenied && user ? (
+        {loading ? (
+          <div className="max-w-7xl mx-auto my-24 text-center text-sm text-[#494453]">
+            <div className="inline-block w-8 h-8 border-2 border-[#5e35b1] border-t-transparent rounded-full animate-spin mb-3"></div>
+            <div>Loading portfolio repository...</div>
+          </div>
+        ) : !user ? (
+          <AnonymousGateView
+            onOpenAuth={() => setIsAuthOpen(true)}
+            googleConfigured={googleConfigured}
+          />
+        ) : accessDenied || user.status !== "ACTIVE" ? (
           <AccessDeniedView
             user={user}
             onOpenAuth={() => setIsAuthOpen(true)}
@@ -390,30 +412,24 @@ export default function PortfolioPage() {
             />
 
             {/* Futuristic Tabular Directory Table */}
-            {loading ? (
-              <div className="max-w-7xl mx-auto my-12 text-center text-sm text-[#494453]">
-                Loading portfolio repository...
-              </div>
-            ) : (
-              <ProjectTable
-                projects={filteredProjects}
-                selectedIds={selectedIds}
-                onToggleSelect={handleToggleSelect}
-                onCopyUrl={handleCopyUrl}
-                onCopyBlurb={handleCopyBlurb}
-                onAddTag={(proj) => setTagModalProject(proj)}
-                onTagClick={(tag) => {
-                  setSearchTerm(tag);
-                  showToast("Search Filter Injected", `Searching for: ${tag}`, "info");
-                }}
-                onEditProject={(proj) => {
-                  setEditingProject(proj);
-                  setIsProjectModalOpen(true);
-                }}
-                onDeleteProject={handleDeleteProject}
-                user={user}
-              />
-            )}
+            <ProjectTable
+              projects={filteredProjects}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              onCopyUrl={handleCopyUrl}
+              onCopyBlurb={handleCopyBlurb}
+              onAddTag={(proj) => setTagModalProject(proj)}
+              onTagClick={(tag) => {
+                setSearchTerm(tag);
+                showToast("Search Filter Injected", `Searching for: ${tag}`, "info");
+              }}
+              onEditProject={(proj) => {
+                setEditingProject(proj);
+                setIsProjectModalOpen(true);
+              }}
+              onDeleteProject={handleDeleteProject}
+              user={user}
+            />
           </>
         )}
       </main>
@@ -450,7 +466,9 @@ export default function PortfolioPage() {
         onClose={() => setIsAuthOpen(false)}
         onLoginSuccess={(loggedUser) => {
           setUser(loggedUser);
-          fetchProjects();
+          if (loggedUser.status === "ACTIVE") {
+            fetchProjects();
+          }
         }}
         onToast={showToast}
       />
