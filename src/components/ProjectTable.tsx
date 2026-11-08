@@ -1,7 +1,7 @@
 "use client";
 
 import { Project, User } from "@/lib/types";
-import { Copy, ExternalLink, MessageSquare, MoreVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Globe, Megaphone, Pencil, Plus, Smartphone, Trash2 } from "lucide-react";
 import React from "react";
 
 interface ProjectTableProps {
@@ -14,6 +14,7 @@ interface ProjectTableProps {
   onTagClick: (tag: string) => void;
   onEditProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
+  onOpenAddProject?: () => void;
   user: User | null;
 }
 
@@ -27,6 +28,7 @@ export function ProjectTable({
   onTagClick,
   onEditProject,
   onDeleteProject,
+  onOpenAddProject,
   user,
 }: ProjectTableProps) {
   const isAdmin = user?.role === "ADMIN" && user?.status === "ACTIVE";
@@ -34,16 +36,28 @@ export function ProjectTable({
 
   if (projects.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto my-8 p-12 bg-white rounded-2xl border border-[#e5eeff] text-center">
-        <div className="w-12 h-12 mx-auto rounded-full bg-[#eff4ff] text-[#5e35b1] flex items-center justify-center font-bold text-xl mb-3">
-          🔍
+      <div className="max-w-7xl mx-auto my-12 p-12 bg-white rounded-3xl border border-[#e5eeff] text-center shadow-lg shadow-purple-950/5">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-[#eff4ff] to-[#eaddff] text-[#5e35b1] flex items-center justify-center font-bold text-2xl mb-4 shadow-sm">
+          📁
         </div>
-        <h3 className="font-['Plus_Jakarta_Sans'] text-lg font-bold text-[#0b1c30]">
-          No projects found
+        <h3 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#0b1c30]">
+          No projects found in directory
         </h3>
-        <p className="text-sm text-[#494453] mt-1 max-w-sm mx-auto">
-          Try adjusting your search keywords, clearing active filters, or add a new project to the directory.
+        <p className="text-sm text-[#494453] mt-2 max-w-md mx-auto">
+          There are currently no projects matching this category or search filter. Add a new showcase project to start building your directory.
         </p>
+
+        {canEdit && onOpenAddProject && (
+          <div className="mt-6">
+            <button
+              onClick={onOpenAddProject}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5e35b1] text-white text-sm font-semibold hover:bg-[#461599] transition-all shadow-md shadow-purple-950/10 active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add First Project</span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -58,8 +72,8 @@ export function ProjectTable({
                 <th className="py-3 px-3 w-10 text-center" scope="col">
                   <span className="sr-only">Select</span>
                 </th>
-                <th className="py-3 px-3 font-semibold min-w-[160px]" scope="col">
-                  PROJECT
+                <th className="py-3 px-3 font-semibold min-w-[200px]" scope="col">
+                  PROJECT & CATEGORY
                 </th>
                 <th className="py-3 px-3 font-semibold min-w-[200px]" scope="col">
                   LIVE URL
@@ -82,6 +96,7 @@ export function ProjectTable({
                 const displayUrl = proj.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
                 const truncatedUrl =
                   displayUrl.length > 28 ? `${displayUrl.slice(0, 26)}...` : displayUrl;
+                const cat = (proj.category || "website").toLowerCase();
 
                 return (
                   <tr
@@ -101,9 +116,32 @@ export function ProjectTable({
 
                     <td className="py-3.5 px-3 align-middle">
                       <div className="flex flex-col">
-                        <span className="font-['Plus_Jakarta_Sans'] font-bold text-[#0b1c30] text-[15px]">
-                          {proj.title}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-['Plus_Jakarta_Sans'] font-bold text-[#0b1c30] text-[15px]">
+                            {proj.title}
+                          </span>
+
+                          {/* Category Badge */}
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider ${
+                              cat === "mobile app"
+                                ? "bg-purple-100 text-purple-700 border border-purple-200"
+                                : cat === "digital marketing"
+                                ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                                : "bg-blue-100 text-blue-700 border border-blue-200"
+                            }`}
+                          >
+                            {cat === "mobile app" ? (
+                              <Smartphone className="w-3 h-3" />
+                            ) : cat === "digital marketing" ? (
+                              <Megaphone className="w-3 h-3" />
+                            ) : (
+                              <Globe className="w-3 h-3" />
+                            )}
+                            <span>{proj.category || "website"}</span>
+                          </span>
+                        </div>
+
                         {proj.description && (
                           <span className="text-[11px] text-[#494453] line-clamp-1 max-w-xs mt-0.5" title={proj.description}>
                             {proj.description}
@@ -137,15 +175,19 @@ export function ProjectTable({
 
                     <td className="py-3.5 px-3 align-middle">
                       <div className="flex flex-wrap gap-1">
-                        {proj.techStack.map((tech, idx) => (
-                          <span
-                            key={idx}
-                            onClick={() => onTagClick(tech)}
-                            className="px-2 py-0.5 rounded bg-[#e5eeff] text-[#0b1c30] font-['JetBrains_Mono'] text-[11px] font-medium cursor-pointer hover:bg-[#dce9ff] transition-colors"
-                          >
-                            {tech}
-                          </span>
-                        ))}
+                        {proj.techStack.length === 0 ? (
+                          <span className="text-xs text-[#7b7484] italic">—</span>
+                        ) : (
+                          proj.techStack.map((tech, idx) => (
+                            <span
+                              key={idx}
+                              onClick={() => onTagClick(tech)}
+                              className="px-2 py-0.5 rounded bg-[#e5eeff] text-[#0b1c30] font-['JetBrains_Mono'] text-[11px] font-medium cursor-pointer hover:bg-[#dce9ff] transition-colors"
+                            >
+                              {tech}
+                            </span>
+                          ))
+                        )}
                       </div>
                     </td>
 

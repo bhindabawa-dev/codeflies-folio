@@ -8,11 +8,13 @@ import { BatchActionBar, CopyFormat } from "@/components/BatchActionBar";
 import { Header } from "@/components/Header";
 import { ProjectModal } from "@/components/ProjectModal";
 import { ProjectTable } from "@/components/ProjectTable";
-import { SearchHero } from "@/components/SearchHero";
+import { CategoryCount, SearchHero } from "@/components/SearchHero";
 import { TagModal } from "@/components/TagModal";
 import { Toast, ToastData } from "@/components/Toast";
-import { Project, User } from "@/lib/types";
+import { Project, ProjectCategory, User } from "@/lib/types";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+const CATEGORY_STORAGE_KEY = "codeflies_portfolio_category";
 
 export default function PortfolioPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -21,9 +23,10 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
 
-  // Search & Filter state
+  // Search, Category & Filter state (persistent category selection)
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Modals & UI
@@ -33,6 +36,31 @@ export default function PortfolioPage() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [tagModalProject, setTagModalProject] = useState<Project | null>(null);
+
+  // Load saved category state from localStorage so it never defaults away from user choice
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CATEGORY_STORAGE_KEY);
+      if (
+        saved &&
+        ["all", "website", "mobile app", "digital marketing"].includes(saved.toLowerCase().trim())
+      ) {
+        setSelectedCategory(saved.toLowerCase().trim());
+      }
+    } catch {
+      // Ignore localStorage issues
+    }
+  }, []);
+
+  const handleCategoryChange = (category: string) => {
+    const clean = category.toLowerCase().trim();
+    setSelectedCategory(clean);
+    try {
+      localStorage.setItem(CATEGORY_STORAGE_KEY, clean);
+    } catch {
+      // Ignore
+    }
+  };
 
   const showToast = useCallback(
     (title: string, subtitle?: string, type?: "success" | "info" | "warning") => {
@@ -103,7 +131,7 @@ export default function PortfolioPage() {
     });
   }, [fetchSession, fetchProjects]);
 
-  // Extract unique tags for quick preset pill bar
+  // Extract unique tags and tech stacks
   const availableTags = useMemo(() => {
     const set = new Set<string>();
     projects.forEach((p) => {
@@ -112,33 +140,78 @@ export default function PortfolioPage() {
     return Array.from(set);
   }, [projects]);
 
-  // Super fast client-side fuzzy filter
+  const availableTechStacks = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => {
+      p.techStack.forEach((t) => set.add(t));
+    });
+    return Array.from(set);
+  }, [projects]);
+
+  // Category counts
+  const categoryCounts: CategoryCount = useMemo(() => {
+    let websiteCount = 0;
+    let mobileCount = 0;
+    let marketingCount = 0;
+
+    projects.forEach((p) => {
+      const c = (p.category || "website").toLowerCase().trim();
+      if (c === "mobile app") mobileCount++;
+      else if (c === "digital marketing") marketingCount++;
+      else websiteCount++;
+    });
+
+    return {
+      all: projects.length,
+      website: websiteCount,
+      "mobile app": mobileCount,
+      "digital marketing": marketingCount,
+    };
+  }, [projects]);
+
+  // Client-side fuzzy filter respecting persistent category & search
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
-      const q = searchTerm.toLowerCase().trim();
+      // 1. Category Filter
+      if (selectedCategory !== "all") {
+        const pCat = (p.category || "website").toLowerCase().trim();
+        if (pCat !== selectedCategory.toLowerCase().trim()) {
+          return false;
+        }
+      }
+
+      // 2. Active Tag Preset Filter
       const f = activeFilter.toLowerCase().trim();
+      if (f) {
+        const matchesFilter =
+          p.tags.some(
+            (t) =>
+              t.toLowerCase() === f ||
+              t.toLowerCase() === `#${f}` ||
+              t.toLowerCase().replace("#", "") === f.replace("#", "")
+          ) ||
+          p.techStack.some((t) => t.toLowerCase() === f);
 
-      const matchesSearch =
-        !q ||
-        p.title.toLowerCase().includes(q) ||
-        p.url.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.techStack.some((t) => t.toLowerCase().includes(q)) ||
-        p.tags.some((t) => t.toLowerCase().includes(q));
+        if (!matchesFilter) return false;
+      }
 
-      const matchesFilter =
-        !f ||
-        p.tags.some(
-          (t) =>
-            t.toLowerCase() === f ||
-            t.toLowerCase() === `#${f}` ||
-            t.toLowerCase().replace("#", "") === f.replace("#", "")
-        ) ||
-        p.techStack.some((t) => t.toLowerCase().includes(f));
+      // 3. Search Query Filter
+      const q = searchTerm.toLowerCase().trim();
+      if (q) {
+        const matchesSearch =
+          p.title.toLowerCase().includes(q) ||
+          p.url.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          (p.category && p.category.toLowerCase().includes(q)) ||
+          p.techStack.some((t) => t.toLowerCase().includes(q)) ||
+          p.tags.some((t) => t.toLowerCase().includes(q));
 
-      return matchesSearch && matchesFilter;
+        if (!matchesSearch) return false;
+      }
+
+      return true;
     });
-  }, [projects, searchTerm, activeFilter]);
+  }, [projects, selectedCategory, searchTerm, activeFilter]);
 
   // Selection handlers
   const handleToggleSelect = (id: string) => {
@@ -194,20 +267,20 @@ export default function PortfolioPage() {
       text =
         `🚀 *Codeflies Portfolio Samples for Your Review*\n\n` +
         selectedRows
-          .map((p, i) => `${i + 1}. *${p.title}* \n   🔗 ${p.url}\n   ⚡ Stack: ${p.techStack.join(", ")}`)
+          .map((p, i) => `${i + 1}. *${p.title}* [${p.category || "Website"}]\n   🔗 ${p.url}\n   ⚡ Stack: ${p.techStack.join(", ")}`)
           .join("\n\n") +
         `\n\n_Feel free to click through each live demo!_`;
     } else if (format === "markdown") {
       text =
         `### Codeflies Relevant Case Studies\n\n` +
         selectedRows
-          .map((p) => `- **[${p.title}](${p.url})** — *${p.techStack.join(", ")}*`)
+          .map((p) => `- **[${p.title}](${p.url})** *(${p.category || "Website"})* — *${p.techStack.join(", ")}*`)
           .join("\n");
     } else if (format === "email") {
       text =
-        `Hi there,\n\nHere are the relevant verified links from our portfolio that match your tech stack:\n\n` +
+        `Hi there,\n\nHere are the relevant verified links from our portfolio that match your requirements:\n\n` +
         selectedRows
-          .map((p) => `• ${p.title} (${p.techStack.join(", ")}): ${p.url}`)
+          .map((p) => `• ${p.title} [${p.category || "Website"}] (${p.techStack.join(", ")}): ${p.url}`)
           .join("\n") +
         `\n\nLet me know if you would like an architect walkthrough!`;
     } else {
@@ -248,6 +321,7 @@ export default function PortfolioPage() {
     description: string;
     techStack: string[];
     tags: string[];
+    category: ProjectCategory | string;
   }) => {
     if (data.id) {
       // Edit
@@ -378,13 +452,16 @@ export default function PortfolioPage() {
           />
         ) : (
           <>
-            {/* Hero Search Section */}
+            {/* Hero Search Section with Persistent Category Switcher & Auto-suggestions */}
             <SearchHero
               searchTerm={searchTerm}
               onSearchChange={(val) => {
                 setSearchTerm(val);
                 if (val && activeFilter) setActiveFilter("");
               }}
+              selectedCategory={selectedCategory}
+              onCategoryChange={handleCategoryChange}
+              categoryCounts={categoryCounts}
               activeFilter={activeFilter}
               onFilterSelect={(tag) => {
                 if (activeFilter.toLowerCase() === tag.toLowerCase()) {
@@ -396,6 +473,7 @@ export default function PortfolioPage() {
                 }
               }}
               availableTags={availableTags}
+              availableTechStacks={availableTechStacks}
             />
 
             {/* Sticky Batch Multi-Copy Bar */}
@@ -428,6 +506,10 @@ export default function PortfolioPage() {
                 setIsProjectModalOpen(true);
               }}
               onDeleteProject={handleDeleteProject}
+              onOpenAddProject={() => {
+                setEditingProject(null);
+                setIsProjectModalOpen(true);
+              }}
               user={user}
             />
           </>
@@ -438,6 +520,8 @@ export default function PortfolioPage() {
       <ProjectModal
         isOpen={isProjectModalOpen}
         project={editingProject}
+        existingTechStacks={availableTechStacks}
+        existingTags={availableTags}
         onClose={() => {
           setIsProjectModalOpen(false);
           setEditingProject(null);

@@ -1,5 +1,6 @@
 export type UserRole = "ADMIN" | "USER";
 export type UserStatus = "ACTIVE" | "REVOKED" | "PENDING";
+export type ProjectCategory = "website" | "mobile app" | "digital marketing";
 
 export interface User {
   id: string;
@@ -18,6 +19,7 @@ export interface Project {
   description: string;
   techStack: string[];
   tags: string[];
+  category: ProjectCategory | string;
   order: number;
   createdAt: string;
   updatedAt: string;

@@ -18,7 +18,7 @@ export async function PUT(
     const { id } = await params;
     const body = await req.json();
 
-    const { title, url, description, techStack, tags, order } = body;
+    const { title, url, description, techStack, tags, category, order } = body;
 
     const parsedTech =
       techStack !== undefined
@@ -40,12 +40,22 @@ export async function PUT(
           : []
         : undefined;
 
+    const parsedCategory =
+      category !== undefined
+        ? ["website", "mobile app", "digital marketing"].includes(
+            String(category).toLowerCase().trim()
+          )
+          ? String(category).toLowerCase().trim()
+          : "website"
+        : undefined;
+
     const updated = await updateProject(id, {
       ...(title !== undefined && { title }),
       ...(url !== undefined && { url }),
       ...(description !== undefined && { description }),
       ...(parsedTech !== undefined && { techStack: parsedTech }),
       ...(parsedTags !== undefined && { tags: parsedTags }),
+      ...(parsedCategory !== undefined && { category: parsedCategory }),
       ...(order !== undefined && { order: Number(order) }),
     });
 

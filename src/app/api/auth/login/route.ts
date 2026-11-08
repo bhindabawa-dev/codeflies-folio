@@ -17,16 +17,6 @@ export async function POST(req: NextRequest) {
       targetName = "Codeflies Admin";
       targetRole = "ADMIN";
       targetStatus = "ACTIVE";
-    } else if (demoRole === "user") {
-      targetEmail = "member@codeflies.com";
-      targetName = "Sales Engineer";
-      targetRole = "USER";
-      targetStatus = "ACTIVE";
-    } else if (demoRole === "revoked") {
-      targetEmail = "revoked@codeflies.com";
-      targetName = "Revoked User (Demo)";
-      targetRole = "USER";
-      targetStatus = "REVOKED";
     }
 
     if (!targetEmail) {

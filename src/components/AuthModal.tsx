@@ -26,7 +26,7 @@ export function AuthModal({
 
   if (!isOpen) return null;
 
-  const handleQuickLogin = async (demoRole: "admin" | "user" | "revoked") => {
+  const handleQuickLogin = async (demoRole: "admin") => {
     try {
       setLoading(true);
       const res = await fetch("/api/auth/login", {
@@ -154,7 +154,7 @@ export function AuthModal({
           <div className="relative flex items-center justify-center">
             <span className="w-full border-t border-[#eff4ff]"></span>
             <span className="absolute bg-white px-3 text-[11px] uppercase tracking-wider text-[#7b7484] font-semibold">
-              Instant Test Accounts
+              Admin Quick Access
             </span>
           </div>
 
@@ -176,44 +176,6 @@ export function AuthModal({
                 </div>
               </div>
               <span className="text-[11px] font-semibold text-[#5e35b1]">Login →</span>
-            </button>
-
-            <button
-              disabled={loading}
-              onClick={() => handleQuickLogin("user")}
-              className="w-full p-3 rounded-xl border border-[#cbdbf5] hover:border-[#5e35b1] hover:bg-[#eff4ff]/60 transition-all flex items-center justify-between text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#eff4ff] text-[#006172] flex items-center justify-center">
-                  <UserCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-[#0b1c30] group-hover:text-[#5e35b1]">
-                    Sales Engineer (Normal Active User)
-                  </div>
-                  <div className="text-[11px] text-[#494453]">member@codeflies.com</div>
-                </div>
-              </div>
-              <span className="text-[11px] font-semibold text-[#5e35b1]">Login →</span>
-            </button>
-
-            <button
-              disabled={loading}
-              onClick={() => handleQuickLogin("revoked")}
-              className="w-full p-3 rounded-xl border border-red-200 bg-red-50/30 hover:bg-red-50 transition-all flex items-center justify-between text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center">
-                  <ShieldAlert className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-[#0b1c30] group-hover:text-red-700">
-                    Revoked User (Test Access Revocation)
-                  </div>
-                  <div className="text-[11px] text-[#494453]">revoked@codeflies.com</div>
-                </div>
-              </div>
-              <span className="text-[11px] font-semibold text-red-600">Test →</span>
             </button>
           </div>
 

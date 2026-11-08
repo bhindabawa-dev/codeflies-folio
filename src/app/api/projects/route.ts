@@ -30,17 +30,25 @@ export async function GET(req: NextRequest) {
     const { searchParams } = req.nextUrl;
     const query = searchParams.get("q")?.toLowerCase().trim() || "";
     const tagFilter = searchParams.get("tag")?.toLowerCase().trim() || "";
+    const categoryFilter = searchParams.get("category")?.toLowerCase().trim() || "";
 
     let projects = await getProjects();
+
+    if (categoryFilter && categoryFilter !== "all") {
+      projects = projects.filter(
+        (p) => (p.category || "website").toLowerCase() === categoryFilter
+      );
+    }
 
     if (query) {
       projects = projects.filter((p) => {
         const titleMatch = p.title.toLowerCase().includes(query);
         const urlMatch = p.url.toLowerCase().includes(query);
         const descMatch = p.description.toLowerCase().includes(query);
+        const categoryMatch = (p.category || "").toLowerCase().includes(query);
         const techMatch = p.techStack.some((t) => t.toLowerCase().includes(query));
         const tagMatch = p.tags.some((tag) => tag.toLowerCase().includes(query));
-        return titleMatch || urlMatch || descMatch || techMatch || tagMatch;
+        return titleMatch || urlMatch || descMatch || categoryMatch || techMatch || tagMatch;
       });
     }
 
@@ -77,7 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, url, description, techStack, tags } = body;
+    const { title, url, description, techStack, tags, category } = body;
 
     if (!title?.trim() || !url?.trim()) {
       return NextResponse.json(
@@ -85,6 +93,12 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const parsedCategory = ["website", "mobile app", "digital marketing"].includes(
+      String(category).toLowerCase().trim()
+    )
+      ? String(category).toLowerCase().trim()
+      : "website";
 
     const parsedTech = Array.isArray(techStack)
       ? techStack.map((t) => String(t).trim()).filter(Boolean)
@@ -104,6 +118,7 @@ export async function POST(req: NextRequest) {
       description: description || `${title}: Live showcase at ${url}`,
       techStack: parsedTech,
       tags: parsedTags,
+      category: parsedCategory,
     });
 
     return NextResponse.json({ project: newProject }, { status: 201 });

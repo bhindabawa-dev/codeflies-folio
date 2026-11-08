@@ -1,96 +1,7 @@
 import prisma from "./prisma";
 import { Project, User, UserRole, UserStatus } from "./types";
 
-const INITIAL_PROJECTS: Project[] = [
-  {
-    id: "proj_1",
-    title: "PayStream",
-    url: "https://paystream.codeflies-showcase.io",
-    description: "PayStream: Next-gen treasury handling multi-currency Stripe workflows. Live: https://paystream.codeflies-showcase.io",
-    techStack: ["Next.js 14", "Stripe API"],
-    tags: ["#Fintech"],
-    order: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_2",
-    title: "HealthPulse",
-    url: "https://healthpulse.codeflies-showcase.io",
-    description: "HealthPulse: Certified HIPAA architecture with WebRTC video. Live: https://healthpulse.codeflies-showcase.io",
-    techStack: ["React Native", "WebRTC"],
-    tags: ["#Healthcare"],
-    order: 2,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_3",
-    title: "LuxeHaven",
-    url: "https://luxehaven.codeflies-showcase.io",
-    description: "LuxeHaven: 60FPS WebGL architectural visualization. Live: https://luxehaven.codeflies-showcase.io",
-    techStack: ["Three.js", "WebGL"],
-    tags: ["#WebGL"],
-    order: 3,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_4",
-    title: "Omnikart",
-    url: "https://omnikart.codeflies-showcase.io",
-    description: "Omnikart: Headless Shopify Plus store with 99 Lighthouse score. Live: https://omnikart.codeflies-showcase.io",
-    techStack: ["Shopify Plus", "Hydrogen"],
-    tags: ["#ECommerce"],
-    order: 4,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_5",
-    title: "CloudMetrics",
-    url: "https://cloudmetrics.codeflies-showcase.io",
-    description: "CloudMetrics: Real-time DevOps analytics handling 10M events/sec. Live: https://cloudmetrics.codeflies-showcase.io",
-    techStack: ["React 18", "ClickHouse"],
-    tags: ["#SaaS"],
-    order: 5,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_6",
-    title: "Apex Logistics",
-    url: "https://apexlogistics.codeflies-showcase.io",
-    description: "Apex Logistics: Real-time dynamic routing and Mapbox telemetry. Live: https://apexlogistics.codeflies-showcase.io",
-    techStack: ["Mapbox GL", "Node.js"],
-    tags: ["#Logistics"],
-    order: 6,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_7",
-    title: "FinScale AI",
-    url: "https://finscale.codeflies-showcase.io",
-    description: "FinScale AI: Autonomous compliance engine for algorithmic trading desks. Live: https://finscale.codeflies-showcase.io",
-    techStack: ["FastAPI", "Python", "OpenAI"],
-    tags: ["#Fintech", "#AI"],
-    order: 7,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: "proj_8",
-    title: "PulseFit Mobile",
-    url: "https://pulsefit.codeflies-showcase.io",
-    description: "PulseFit Mobile: Cross-platform companion for connected gym hardware with offline sync. Live: https://pulsefit.codeflies-showcase.io",
-    techStack: ["Flutter", "Firebase"],
-    tags: ["#Mobile", "#Fitness"],
-    order: 8,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const INITIAL_PROJECTS: Project[] = [];
 
 const INITIAL_USERS: User[] = [
   {
@@ -99,24 +10,6 @@ const INITIAL_USERS: User[] = [
     email: "info@codeflies.com",
     role: "ADMIN",
     status: "ACTIVE",
-    image: null,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "user_member",
-    name: "Sales Engineer",
-    email: "member@codeflies.com",
-    role: "USER",
-    status: "ACTIVE",
-    image: null,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "user_revoked",
-    name: "Revoked User (Demo)",
-    email: "revoked@codeflies.com",
-    role: "USER",
-    status: "REVOKED",
     image: null,
     createdAt: new Date().toISOString(),
   },
@@ -204,7 +97,7 @@ export async function ensureDatabaseSchema(): Promise<boolean> {
       );
     `);
 
-    // 5. Create Project table
+    // 5. Create Project table with category support
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Project" (
         "id" TEXT NOT NULL PRIMARY KEY,
@@ -213,10 +106,24 @@ export async function ensureDatabaseSchema(): Promise<boolean> {
         "description" TEXT,
         "techStack" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
         "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+        "category" TEXT NOT NULL DEFAULT 'website',
         "order" INTEGER NOT NULL DEFAULT 0,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // Ensure category column exists if table was created previously without it
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "category" TEXT NOT NULL DEFAULT 'website';
+    `);
+
+    // Clean up any previously auto-seeded dummy project records and test accounts from Neon
+    await prisma.$executeRawUnsafe(`
+      DELETE FROM "Project" WHERE "id" IN ('proj_1', 'proj_2', 'proj_3', 'proj_4', 'proj_5', 'proj_6', 'proj_7', 'proj_8');
+    `);
+    await prisma.$executeRawUnsafe(`
+      DELETE FROM "User" WHERE "id" IN ('user_member', 'user_revoked');
     `);
 
     isSchemaInitialized = true;
@@ -249,40 +156,23 @@ export async function getProjects(): Promise<Project[]> {
       const dbProjects = await prisma.project.findMany({
         orderBy: [{ order: "asc" }, { createdAt: "desc" }],
       });
-      if (dbProjects.length > 0) {
-        return dbProjects.map((p) => ({
-          id: p.id,
-          title: p.title,
-          url: p.url,
-          description: p.description || "",
-          techStack: p.techStack,
-          tags: p.tags,
-          order: p.order,
-          createdAt: p.createdAt.toISOString(),
-          updatedAt: p.updatedAt.toISOString(),
-        }));
-      } else {
-        // Seed default projects into DB
-        for (const proj of INITIAL_PROJECTS) {
-          await prisma.project.create({
-            data: {
-              id: proj.id,
-              title: proj.title,
-              url: proj.url,
-              description: proj.description,
-              techStack: proj.techStack,
-              tags: proj.tags,
-              order: proj.order,
-            },
-          });
-        }
-        return INITIAL_PROJECTS;
-      }
+      return dbProjects.map((p) => ({
+        id: p.id,
+        title: p.title,
+        url: p.url,
+        description: p.description || "",
+        techStack: p.techStack,
+        tags: p.tags,
+        category: (p as unknown as { category?: string }).category || "website",
+        order: p.order,
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+      }));
     } catch (err) {
       console.warn("Prisma query failed, falling back to memory store:", err);
     }
   }
-  return globalData.inMemoryProjects || INITIAL_PROJECTS;
+  return globalData.inMemoryProjects || [];
 }
 
 export async function createProject(data: {
@@ -291,9 +181,11 @@ export async function createProject(data: {
   description?: string;
   techStack: string[];
   tags: string[];
+  category?: string;
 }): Promise<Project> {
   const dbConnected = await testDatabaseConnection();
   const newOrder = (globalData.inMemoryProjects?.length || 0) + 1;
+  const normalizedCategory = (data.category || "website").toLowerCase().trim();
   const newProj: Project = {
     id: `proj_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     title: data.title.trim(),
@@ -301,6 +193,7 @@ export async function createProject(data: {
     description: data.description?.trim() || `${data.title}: ${data.url}`,
     techStack: data.techStack,
     tags: data.tags,
+    category: normalizedCategory,
     order: newOrder,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -315,6 +208,7 @@ export async function createProject(data: {
           description: newProj.description,
           techStack: newProj.techStack,
           tags: newProj.tags,
+          category: newProj.category,
           order: newOrder,
         },
       });
@@ -330,7 +224,7 @@ export async function createProject(data: {
 
 export async function updateProject(
   id: string,
-  data: Partial<Omit<Project, "id" | "createdAt" | "updatedAt">>
+  data: Partial<Omit<Project, "id" | "createdAt" | "updatedAt">> & { category?: string }
 ): Promise<Project | null> {
   const dbConnected = await testDatabaseConnection();
   if (dbConnected) {
@@ -343,6 +237,7 @@ export async function updateProject(
           ...(data.description !== undefined && { description: data.description }),
           ...(data.techStack && { techStack: data.techStack }),
           ...(data.tags && { tags: data.tags }),
+          ...(data.category && { category: data.category.toLowerCase().trim() }),
           ...(data.order !== undefined && { order: data.order }),
         },
       });
@@ -353,6 +248,7 @@ export async function updateProject(
         description: updated.description || "",
         techStack: updated.techStack,
         tags: updated.tags,
+        category: (updated as unknown as { category?: string }).category || "website",
         order: updated.order,
         createdAt: updated.createdAt.toISOString(),
         updatedAt: updated.updatedAt.toISOString(),
@@ -368,6 +264,7 @@ export async function updateProject(
     const updated: Project = {
       ...existing,
       ...data,
+      ...(data.category && { category: data.category.toLowerCase().trim() }),
       updatedAt: new Date().toISOString(),
     };
     globalData.inMemoryProjects[idx] = updated;
