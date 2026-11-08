@@ -12,6 +12,7 @@ import { CategoryCount, SearchHero } from "@/components/SearchHero";
 import { TagModal } from "@/components/TagModal";
 import { Toast, ToastData } from "@/components/Toast";
 import { Project, ProjectCategory, User } from "@/lib/types";
+import { APP_VERSION } from "@/lib/version";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const CATEGORY_STORAGE_KEY = "codeflies_portfolio_category";
@@ -563,8 +564,10 @@ export default function PortfolioPage() {
           <div className="text-center sm:text-left">
             © Codeflies • Portfolio Showcase & Link Directory
           </div>
-          <div className="font-['JetBrains_Mono'] text-[11px] text-[#7b7484]">
-            folio.codeflies.com
+          <div className="font-['JetBrains_Mono'] text-[11px] text-[#7b7484] flex items-center gap-1.5">
+            <span>folio.codeflies.com</span>
+            <span>•</span>
+            <span className="font-semibold text-[#5e35b1]">{APP_VERSION}</span>
           </div>
         </div>
       </footer>

@@ -1,6 +1,7 @@
 "use client";
 
 import { User } from "@/lib/types";
+import { APP_VERSION } from "@/lib/version";
 import { LogIn, LogOut, Plus, ShieldCheck, Users } from "lucide-react";
 import React from "react";
 
@@ -32,6 +33,12 @@ export function Header({
             </div>
             <span className="font-['Plus_Jakarta_Sans'] text-xl sm:text-2xl font-bold tracking-tight text-[#461599]">
               Codeflies
+            </span>
+            <span
+              className="px-1.5 py-0.5 rounded-md bg-[#eaddff] text-[#461599] text-[11px] font-['JetBrains_Mono'] font-bold tracking-tight border border-[#d1bcff]/60 self-center"
+              title="Current Application Version"
+            >
+              {APP_VERSION}
             </span>
           </div>
           <span className="h-4 w-px bg-[#cbc3d5] hidden sm:inline-block"></span>
