@@ -56,10 +56,27 @@ export function SearchHero({
   const searchWrapperRef = useRef<HTMLDivElement>(null);
   const compactSearchWrapperRef = useRef<HTMLDivElement>(null);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
-  const [forceCompact, setForceCompact] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<"compact" | "google">("compact");
 
-  // Automatically become a thin top bar if user starts typing, or if user toggled compact mode
-  const isCompact = forceCompact || searchTerm.trim().length > 0;
+  // Load layout mode preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("codeflies_search_layout_mode");
+      if (saved === "google" || saved === "compact") {
+        setLayoutMode(saved);
+      }
+    } catch {}
+  }, []);
+
+  const changeLayoutMode = (mode: "compact" | "google") => {
+    setLayoutMode(mode);
+    try {
+      localStorage.setItem("codeflies_search_layout_mode", mode);
+    } catch {}
+  };
+
+  // If user has typed anything in search, ALWAYS be in compact thin bar mode
+  const isCompact = layoutMode === "compact" || searchTerm.trim().length > 0;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -134,22 +151,21 @@ export function SearchHero({
     isSuggestionsOpen &&
     (suggestedCategories.length > 0 || suggestedTech.length > 0 || suggestedTags.length > 0);
 
-  // Suggestions Dropdown Popup Component
+  // Suggestions Dropdown Popup
   const renderSuggestionsDropdown = () => {
     if (!hasSuggestions) return null;
     return (
-      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-[#cbdbf5] shadow-2xl p-3.5 z-50 text-left animate-in fade-in-50">
-        <div className="text-[11px] font-semibold text-[#7b7484] uppercase tracking-wider px-2 py-0.5 flex items-center justify-between">
+      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-[#cbdbf5] shadow-2xl p-3 z-50 text-left animate-in fade-in-50">
+        <div className="text-[10px] font-semibold text-[#7b7484] uppercase tracking-wider px-2 py-0.5 flex items-center justify-between">
           <span className="flex items-center gap-1 text-[#5e35b1]">
-            <Sparkles className="w-3.5 h-3.5" /> Suggestions
+            <Sparkles className="w-3 h-3" /> Quick Filter Suggestions
           </span>
-          <span className="text-[10px] text-[#7b7484] font-normal">Esc to close</span>
+          <span className="text-[9px] text-[#7b7484]">Esc to close</span>
         </div>
 
         {/* Categories */}
-        <div className="mt-1 pb-2 border-b border-[#eff4ff]">
-          <div className="text-[10px] text-[#7b7484] px-2 font-medium">Categories:</div>
-          <div className="flex flex-wrap gap-1 mt-1">
+        <div className="mt-1 pb-1.5 border-b border-[#eff4ff]">
+          <div className="flex flex-wrap gap-1 mt-0.5">
             {suggestedCategories.map((c) => (
               <button
                 key={c.name}
@@ -157,7 +173,7 @@ export function SearchHero({
                   onCategoryChange(c.categoryKey);
                   setIsSuggestionsOpen(false);
                 }}
-                className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-[#eff4ff] text-[#461599] hover:bg-[#eaddff] transition-all flex items-center gap-1 border border-[#d1bcff]/40 shadow-2xs"
+                className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-[#eff4ff] text-[#461599] hover:bg-[#eaddff] transition-all flex items-center gap-1 border border-[#d1bcff]/40 shadow-2xs"
               >
                 <span>{c.name}</span>
                 <span className="text-[10px] text-[#5e35b1]/80 font-bold">
@@ -170,9 +186,9 @@ export function SearchHero({
 
         {/* Tech Stacks */}
         {suggestedTech.length > 0 && (
-          <div className="mt-1.5 pb-2 border-b border-[#eff4ff]">
-            <div className="text-[10px] text-[#7b7484] px-2 font-medium">Tech Stacks:</div>
-            <div className="flex flex-wrap gap-1 mt-1">
+          <div className="mt-1.5 pb-1.5 border-b border-[#eff4ff]">
+            <div className="text-[10px] text-[#7b7484] px-1 font-medium">Tech Stacks:</div>
+            <div className="flex flex-wrap gap-1 mt-0.5">
               {suggestedTech.map((t) => (
                 <button
                   key={t}
@@ -192,8 +208,8 @@ export function SearchHero({
         {/* Hashtags */}
         {suggestedTags.length > 0 && (
           <div className="mt-1.5">
-            <div className="text-[10px] text-[#7b7484] px-2 font-medium">Hashtags:</div>
-            <div className="flex flex-wrap gap-1 mt-1">
+            <div className="text-[10px] text-[#7b7484] px-1 font-medium">Hashtags:</div>
+            <div className="flex flex-wrap gap-1 mt-0.5">
               {suggestedTags.map((t) => (
                 <button
                   key={t}
@@ -214,16 +230,16 @@ export function SearchHero({
   };
 
   /* ========================================================================= */
-  /* COMPACT THIN BAR MODE (active when typing or forced compact)               */
+  /* COMPACT THIN TOP BAR (Optimizes space: 52px total height, rest is results) */
   /* ========================================================================= */
   if (isCompact) {
     return (
-      <div className="sticky top-16 z-30 w-full bg-[#f8f9ff]/95 backdrop-blur-md border-b border-[#e5eeff] py-2 px-4 sm:px-8 shadow-xs transition-all">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5">
-          {/* Left: Compact Search Bar */}
+      <div className="sticky top-16 z-30 w-full bg-[#f8f9ff]/95 backdrop-blur-md border-b border-[#e5eeff] py-2 px-3 sm:px-8 shadow-xs transition-all">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2">
+          {/* Left: Thin Search Input */}
           <div
             ref={compactSearchWrapperRef}
-            className="relative w-full md:w-[380px] lg:w-[460px] shrink-0"
+            className="relative w-full md:w-[360px] lg:w-[440px] shrink-0"
           >
             <div className="relative flex items-center bg-white rounded-xl shadow-xs border border-[#5e35b1]/30 focus-within:border-[#5e35b1] focus-within:ring-2 focus-within:ring-[#5e35b1]/20 transition-all">
               <div className="pl-3 flex items-center pointer-events-none text-[#5e35b1]">
@@ -240,7 +256,7 @@ export function SearchHero({
                   setIsSuggestionsOpen(true);
                 }}
                 placeholder="Search projects, stack, tags..."
-                className="w-full py-1.5 px-2.5 bg-transparent text-[#0b1c30] placeholder:text-[#7b7484] text-xs sm:text-sm focus:outline-none"
+                className="w-full py-1.5 px-2 bg-transparent text-[#0b1c30] placeholder:text-[#7b7484] text-xs sm:text-sm focus:outline-none"
               />
 
               <div className="pr-2 flex items-center gap-1">
@@ -277,7 +293,7 @@ export function SearchHero({
                 <button
                   key={cat.id}
                   onClick={() => onCategoryChange(cat.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
                     isSelected
                       ? "bg-[#5e35b1] text-white shadow-2xs"
                       : "bg-white border border-[#cbdbf5] text-[#0b1c30] hover:bg-[#eff4ff]"
@@ -297,17 +313,17 @@ export function SearchHero({
             })}
           </div>
 
-          {/* Right: Result Count & View Switcher */}
-          <div className="hidden lg:flex items-center gap-3 shrink-0">
+          {/* Right: Results Count, View Switcher & Expand to Hero */}
+          <div className="hidden lg:flex items-center gap-2.5 shrink-0">
             <span className="text-xs font-semibold text-[#494453]">
-              <strong className="text-[#5e35b1]">{totalResultsCount}</strong> results
+              <strong className="text-[#5e35b1]">{totalResultsCount}</strong> projects
             </span>
 
-            {/* View Mode Toggle: Table vs Cards */}
+            {/* View Mode Toggle: Table vs Grid */}
             <div className="flex items-center bg-white p-0.5 rounded-lg border border-[#cbdbf5]">
               <button
                 onClick={() => onViewModeChange("table")}
-                className={`p-1 rounded ${
+                className={`p-1 rounded transition-colors ${
                   viewMode === "table"
                     ? "bg-[#5e35b1] text-white"
                     : "text-[#7b7484] hover:text-[#0b1c30]"
@@ -318,7 +334,7 @@ export function SearchHero({
               </button>
               <button
                 onClick={() => onViewModeChange("grid")}
-                className={`p-1 rounded ${
+                className={`p-1 rounded transition-colors ${
                   viewMode === "grid"
                     ? "bg-[#5e35b1] text-white"
                     : "text-[#7b7484] hover:text-[#0b1c30]"
@@ -329,16 +345,14 @@ export function SearchHero({
               </button>
             </div>
 
-            {/* Collapse / Expand Toggle */}
+            {/* Toggle to Google-Style Centered View */}
             <button
-              onClick={() => {
-                if (searchTerm) onSearchChange("");
-                setForceCompact(false);
-              }}
-              className="p-1 rounded text-[#7b7484] hover:text-[#0b1c30] hover:bg-white transition-colors"
-              title="Expand to Full Search Hero"
+              onClick={() => changeLayoutMode("google")}
+              className="p-1.5 rounded-lg border border-[#cbdbf5] bg-white text-[#494453] hover:text-[#5e35b1] hover:bg-[#eff4ff] transition-all text-[11px] font-medium flex items-center gap-1"
+              title="Switch to Centered Google-style search"
             >
-              <Maximize2 className="w-3.5 h-3.5" />
+              <Maximize2 className="w-3 h-3" />
+              <span className="hidden xl:inline">Google View</span>
             </button>
           </div>
         </div>
@@ -347,29 +361,29 @@ export function SearchHero({
   }
 
   /* ========================================================================= */
-  /* INITIAL GOOGLE-STYLE CENTERED HERO (when search is empty)                  */
+  /* GOOGLE-STYLE CENTERED HERO (when search is empty & user toggled it)       */
   /* ========================================================================= */
   return (
-    <section className="relative z-30 w-full px-4 sm:px-8 pt-6 pb-3 overflow-visible transition-all">
-      <div className="max-w-3xl mx-auto flex flex-col items-center text-center">
-        {/* Sleek Minimalist Branding */}
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#461599] to-[#5e35b1] flex items-center justify-center text-white font-bold text-sm shadow-xs">
+    <section className="relative z-30 w-full px-4 sm:px-8 pt-8 pb-4 overflow-visible transition-all">
+      <div className="max-w-2xl mx-auto flex flex-col items-center text-center">
+        {/* Google-like Clean Header */}
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#461599] to-[#5e35b1] flex items-center justify-center text-white font-extrabold text-base shadow-sm">
             C
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-2xl sm:text-3xl font-extrabold text-[#0b1c30] tracking-tight">
-            Portfolio Search
+            Codeflies Portfolio Search
           </h1>
         </div>
 
-        <p className="text-xs text-[#494453] max-w-lg">
-          Search, filter, and multi-copy verified Codeflies enterprise case studies & URLs.
+        <p className="text-xs text-[#494453] max-w-md">
+          Search showcase URLs, tech architectures, or hashtags across all client verticals.
         </p>
 
-        {/* Google-like Centered Search Box */}
-        <div className="w-full max-w-2xl mt-4 relative">
+        {/* Centered Search Box */}
+        <div className="w-full mt-5 relative">
           <div ref={searchWrapperRef} className="relative z-40">
-            <div className="relative flex items-center bg-white rounded-2xl shadow-lg shadow-purple-950/5 border border-[#5e35b1]/20 focus-within:border-[#5e35b1] focus-within:ring-2 focus-within:ring-[#5e35b1]/20 transition-all">
+            <div className="relative flex items-center bg-white rounded-2xl shadow-md border border-[#5e35b1]/30 focus-within:border-[#5e35b1] focus-within:ring-2 focus-within:ring-[#5e35b1]/20 transition-all">
               <div className="pl-4 flex items-center pointer-events-none text-[#5e35b1]">
                 <Search className="w-5 h-5" />
               </div>
@@ -377,6 +391,7 @@ export function SearchHero({
               <input
                 ref={inputRef}
                 type="text"
+                autoFocus
                 value={searchTerm}
                 onFocus={() => setIsSuggestionsOpen(true)}
                 onChange={(e) => {
@@ -384,7 +399,7 @@ export function SearchHero({
                   setIsSuggestionsOpen(true);
                 }}
                 placeholder="Search website, mobile app, tech stack, or hashtags..."
-                className="w-full py-3 px-3 bg-transparent text-[#0b1c30] placeholder:text-[#7b7484] text-sm sm:text-base font-normal focus:outline-none"
+                className="w-full py-3.5 px-3 bg-transparent text-[#0b1c30] placeholder:text-[#7b7484] text-sm sm:text-base font-normal focus:outline-none"
               />
 
               <div className="pr-3 flex items-center gap-1.5">
@@ -407,10 +422,10 @@ export function SearchHero({
 
                 <button
                   onClick={() => {
-                    setForceCompact(true);
+                    changeLayoutMode("compact");
                     inputRef.current?.focus();
                   }}
-                  className="px-4 py-1.5 rounded-xl bg-[#5e35b1] text-white text-xs sm:text-sm font-semibold hover:bg-[#461599] transition-all shadow-sm active:scale-95"
+                  className="px-4 py-2 rounded-xl bg-[#5e35b1] text-white text-xs sm:text-sm font-semibold hover:bg-[#461599] transition-all shadow-sm active:scale-95"
                 >
                   Search
                 </button>
@@ -421,7 +436,7 @@ export function SearchHero({
             {renderSuggestionsDropdown()}
           </div>
 
-          {/* Primary Category Switcher (All, Website, Mobile App, Digital Marketing) */}
+          {/* Quick Category Chips */}
           <div className="mt-3.5 flex items-center justify-center gap-2 flex-wrap relative z-10">
             {categories.map((cat) => {
               const Icon = cat.icon;
@@ -431,10 +446,10 @@ export function SearchHero({
                 <button
                   key={cat.id}
                   onClick={() => onCategoryChange(cat.id)}
-                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-2xs ${
                     isSelected
-                      ? "bg-[#5e35b1] text-white shadow-md shadow-purple-950/20 scale-102"
-                      : "bg-white border border-[#cbdbf5] text-[#0b1c30] hover:border-[#5e35b1]/60 hover:bg-[#f8f9ff]"
+                      ? "bg-[#5e35b1] text-white shadow-sm"
+                      : "bg-white border border-[#cbdbf5] text-[#0b1c30] hover:bg-[#f8f9ff]"
                   }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-[#5e35b1]"}`} />
@@ -451,31 +466,16 @@ export function SearchHero({
             })}
           </div>
 
-          {/* Preset Hashtag Pills */}
-          {availableTags.length > 0 && (
-            <div className="mt-2.5 flex items-center justify-center gap-1.5 flex-wrap relative z-10">
-              <span className="text-[11px] text-[#7b7484] font-medium mr-0.5">Quick Tags:</span>
-              {availableTags.slice(0, 6).map((tag) => {
-                const isActive =
-                  activeFilter.toLowerCase() === tag.toLowerCase() ||
-                  searchTerm.toLowerCase().includes(tag.toLowerCase());
-
-                return (
-                  <button
-                    key={tag}
-                    onClick={() => onFilterSelect(tag)}
-                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
-                      isActive
-                        ? "bg-[#eaddff] text-[#24005b] font-semibold border border-[#d1bcff] shadow-sm"
-                        : "bg-[#e5eeff] text-[#494453] hover:bg-[#dce9ff] hover:text-[#0b1c30]"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Switch to Compact toolbar button */}
+          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-[#7b7484]">
+            <button
+              onClick={() => changeLayoutMode("compact")}
+              className="hover:text-[#5e35b1] hover:underline flex items-center gap-1 transition-colors"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              <span>Switch to high-density compact toolbar ({totalResultsCount} projects)</span>
+            </button>
+          </div>
         </div>
       </div>
     </section>

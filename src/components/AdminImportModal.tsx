@@ -316,6 +316,13 @@ Fintech Growth & PPC Campaign,https://fintechgrowth.example.com,digital marketin
       const data = await res.json();
 
       if (res.ok && data.success) {
+        try {
+          const rawExisting = localStorage.getItem("codeflies_portfolio_projects_backup");
+          const existing = rawExisting ? JSON.parse(rawExisting) : [];
+          const merged = [...(data.projects || []), ...existing];
+          localStorage.setItem("codeflies_portfolio_projects_backup", JSON.stringify(merged));
+        } catch {}
+
         onToast(
           "Import Successful",
           `Successfully imported ${data.count} projects into the portfolio showcase.`,

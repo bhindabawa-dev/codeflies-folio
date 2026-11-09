@@ -5,10 +5,12 @@ import {
   Copy,
   ExternalLink,
   Eye,
+  FileSpreadsheet,
   Globe,
   Megaphone,
   Pencil,
   Plus,
+  RotateCcw,
   Smartphone,
   Trash2,
 } from "lucide-react";
@@ -26,6 +28,9 @@ interface ProjectTableProps {
   onEditProject: (project: Project) => void;
   onDeleteProject: (project: Project) => void;
   onOpenAddProject?: () => void;
+  onOpenImport?: () => void;
+  onRestoreBackup?: () => void;
+  hasBackup?: boolean;
   user: User | null;
 }
 
@@ -41,6 +46,9 @@ export function ProjectTable({
   onEditProject,
   onDeleteProject,
   onOpenAddProject,
+  onOpenImport,
+  onRestoreBackup,
+  hasBackup,
   user,
 }: ProjectTableProps) {
   const isAdmin = user?.role === "ADMIN" && user?.status === "ACTIVE";
@@ -53,23 +61,43 @@ export function ProjectTable({
           📁
         </div>
         <h3 className="font-['Plus_Jakarta_Sans'] text-lg font-bold text-[#0b1c30]">
-          No projects found matching criteria
+          No projects found in directory
         </h3>
         <p className="text-xs text-[#494453] mt-1.5 max-w-md mx-auto">
-          Try clearing your search query or switching to another category.
+          Add projects, restore from local backup, or import an Excel spreadsheet to populate your portfolio links.
         </p>
 
-        {canEdit && onOpenAddProject && (
-          <div className="mt-5">
+        <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
+          {hasBackup && onRestoreBackup && (
+            <button
+              onClick={onRestoreBackup}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 border border-purple-200 text-[#5e35b1] text-xs font-semibold hover:bg-purple-100 transition-all shadow-xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Restore from Browser Backup</span>
+            </button>
+          )}
+
+          {isAdmin && onOpenImport && (
+            <button
+              onClick={onOpenImport}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition-all shadow-xs"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Import Excel Spreadsheet</span>
+            </button>
+          )}
+
+          {canEdit && onOpenAddProject && (
             <button
               onClick={onOpenAddProject}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5e35b1] text-white text-xs font-semibold hover:bg-[#461599] transition-all shadow-md shadow-purple-950/10 active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#5e35b1] text-white text-xs font-semibold hover:bg-[#461599] transition-all shadow-xs active:scale-95"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Add New Project</span>
+              <span>Add Single Project</span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     );
   }

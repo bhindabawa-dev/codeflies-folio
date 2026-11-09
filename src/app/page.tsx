@@ -22,6 +22,7 @@ import { APP_VERSION } from "@/lib/version";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const CATEGORY_STORAGE_KEY = "codeflies_portfolio_category";
+const PROJECTS_STORAGE_KEY = "codeflies_portfolio_projects_backup";
 
 export default function PortfolioPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -29,6 +30,7 @@ export default function PortfolioPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [hasLocalBackup, setHasLocalBackup] = useState(false);
 
   // Search, Category & Filter state (persistent category selection)
   const [searchTerm, setSearchTerm] = useState("");
@@ -236,10 +238,44 @@ export default function PortfolioPage() {
 
       setAccessDenied(false);
       if (res.ok && Array.isArray(data.projects)) {
-        setProjects(data.projects);
-        // By default select all for immediate high-speed multicopy
-        const allIds = new Set<string>(data.projects.map((p: Project) => p.id));
-        setSelectedIds(allIds);
+        if (data.projects.length > 0) {
+          setProjects(data.projects);
+          try {
+            localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(data.projects));
+            setHasLocalBackup(true);
+          } catch {}
+          const allIds = new Set<string>(data.projects.map((p: Project) => p.id));
+          setSelectedIds(allIds);
+        } else {
+          // If server returned 0 projects, check if client has resilient local storage backup
+          let localBackup: Project[] = [];
+          try {
+            const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+            if (raw) localBackup = JSON.parse(raw);
+          } catch {}
+
+          if (localBackup.length > 0) {
+            setProjects(localBackup);
+            setHasLocalBackup(true);
+            setSelectedIds(new Set(localBackup.map((p) => p.id)));
+            showToast(
+              "Restored from Local Backup",
+              `Recovered ${localBackup.length} projects from browser storage. Synchronizing to server...`,
+              "info"
+            );
+            // Re-sync back to server in background so serverless container has them
+            try {
+              fetch("/api/projects/import", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ projects: localBackup }),
+              }).catch(() => {});
+            } catch {}
+          } else {
+            setProjects([]);
+            setHasLocalBackup(false);
+          }
+        }
       }
     } catch {
       showToast("Connection Error", "Could not fetch project directory", "warning");
@@ -460,9 +496,14 @@ export default function PortfolioPage() {
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error || "Failed to update project");
 
-      setProjects((prev) =>
-        prev.map((p) => (p.id === data.id ? resData.project : p))
-      );
+      setProjects((prev) => {
+        const next = prev.map((p) => (p.id === data.id ? resData.project : p));
+        try {
+          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+          setHasLocalBackup(true);
+        } catch {}
+        return next;
+      });
       showToast("Project Updated", `Changes saved for "${data.title}".`, "success");
     } else {
       // Add
@@ -474,7 +515,14 @@ export default function PortfolioPage() {
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error || "Failed to add project");
 
-      setProjects((prev) => [resData.project, ...prev]);
+      setProjects((prev) => {
+        const next = [resData.project, ...prev];
+        try {
+          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+          setHasLocalBackup(true);
+        } catch {}
+        return next;
+      });
       setSelectedIds((prev) => new Set([resData.project.id, ...Array.from(prev)]));
       showToast("Project Added", `"${data.title}" added to directory.`, "success");
     }
@@ -492,7 +540,14 @@ export default function PortfolioPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete project");
 
-      setProjects((prev) => prev.filter((p) => p.id !== project.id));
+      setProjects((prev) => {
+        const next = prev.filter((p) => p.id !== project.id);
+        try {
+          localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(next));
+          if (next.length === 0) setHasLocalBackup(false);
+        } catch {}
+        return next;
+      });
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(project.id);
@@ -501,6 +556,39 @@ export default function PortfolioPage() {
       showToast("Project Deleted", `"${project.title}" was removed.`, "info");
     } catch (err: unknown) {
       showToast("Delete Failed", err instanceof Error ? err.message : "Error", "warning");
+    }
+  };
+
+  const handleRestoreBackup = async () => {
+    try {
+      const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+      if (!raw) {
+        showToast("No Backup Found", "No previous projects found in browser storage.", "info");
+        return;
+      }
+      const backup: Project[] = JSON.parse(raw);
+      if (backup.length === 0) {
+        showToast("Backup Empty", "No projects stored in backup.", "info");
+        return;
+      }
+
+      setProjects(backup);
+      setSelectedIds(new Set(backup.map((p) => p.id)));
+      setHasLocalBackup(true);
+
+      // Sync to server
+      const res = await fetch("/api/projects/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projects: backup }),
+      });
+      if (res.ok) {
+        showToast("Backup Restored", `Restored ${backup.length} projects and synced to server!`, "success");
+      } else {
+        showToast("Restored in Browser", `Loaded ${backup.length} projects from local storage.`, "info");
+      }
+    } catch {
+      showToast("Restore Error", "Could not restore projects from local storage.", "warning");
     }
   };
 
@@ -668,6 +756,9 @@ export default function PortfolioPage() {
                   setEditingProject(null);
                   setIsProjectModalOpen(true);
                 }}
+                onOpenImport={() => setIsAdminImportOpen(true)}
+                onRestoreBackup={handleRestoreBackup}
+                hasBackup={hasLocalBackup}
                 user={user}
               />
             )}
