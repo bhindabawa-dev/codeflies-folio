@@ -24,7 +24,7 @@ export function Header({
   const isAdmin = user?.role === "ADMIN" && user?.status === "ACTIVE";
 
   return (
-    <header className="fixed top-0 left-0 w-full z-40 bg-[#f8f9ff]/90 backdrop-blur-xl border-b border-[#5e35b1]/10 shadow-[0_4px_24px_-4px_rgba(94,53,177,0.08)]">
+    <header className="fixed top-0 left-0 w-full z-50 bg-[#f8f9ff]/90 backdrop-blur-xl border-b border-[#5e35b1]/10 shadow-[0_4px_24px_-4px_rgba(94,53,177,0.08)]">
       <div className="h-16 w-full max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>

@@ -32,7 +32,7 @@ export function BatchActionBar({
   };
 
   return (
-    <section className="sticky top-16 z-30 w-full px-4 sm:px-8 py-2.5 bg-[#f8f9ff]/90 backdrop-blur-md transition-all">
+    <section className="sticky top-16 z-20 w-full px-4 sm:px-8 py-2.5 bg-[#f8f9ff]/90 backdrop-blur-md transition-all">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-white shadow-sm border border-[#e5eeff]">
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
           <label className="flex items-center gap-2 cursor-pointer select-none">
