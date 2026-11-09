@@ -1,10 +1,12 @@
 "use client";
 
 import { AccessDeniedView } from "@/components/AccessDeniedView";
+import { AdminForceUpdateModal } from "@/components/AdminForceUpdateModal";
 import { AdminUsersModal } from "@/components/AdminUsersModal";
 import { AnonymousGateView } from "@/components/AnonymousGateView";
 import { AuthModal } from "@/components/AuthModal";
 import { BatchActionBar, CopyFormat } from "@/components/BatchActionBar";
+import { ForceUpdateModal } from "@/components/ForceUpdateModal";
 import { Header } from "@/components/Header";
 import { ProjectModal } from "@/components/ProjectModal";
 import { ProjectTable } from "@/components/ProjectTable";
@@ -34,9 +36,65 @@ export default function PortfolioPage() {
   const [toast, setToast] = useState<ToastData | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminForceUpdateOpen, setIsAdminForceUpdateOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [tagModalProject, setTagModalProject] = useState<Project | null>(null);
+
+  // Force Update State (Real-time lockout when admin triggers update)
+  const [isForceUpdateRequired, setIsForceUpdateRequired] = useState(false);
+  const [targetForceVersion, setTargetForceVersion] = useState(APP_VERSION);
+  const [forceUpdateMessage, setForceUpdateMessage] = useState("");
+  const [forceTimestamp, setForceTimestamp] = useState(0);
+
+  // Real-time system version & forced update checker
+  const checkSystemVersion = useCallback(async () => {
+    try {
+      const res = await fetch("/api/system/version", {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.forceTimestamp && data.forceTimestamp > 0) {
+        let acknowledgedTs = 0;
+        try {
+          acknowledgedTs =
+            Number(localStorage.getItem("codeflies_acknowledged_update_ts")) || 0;
+        } catch {
+          // Ignore
+        }
+
+        const isOutdated =
+          data.forceTimestamp > acknowledgedTs ||
+          (data.currentVersion && data.currentVersion !== APP_VERSION);
+
+        if (isOutdated) {
+          setTargetForceVersion(data.currentVersion || APP_VERSION);
+          setForceUpdateMessage(data.message || "");
+          setForceTimestamp(data.forceTimestamp);
+          setIsForceUpdateRequired(true);
+        }
+      }
+    } catch {
+      // Ignore network glitches
+    }
+  }, []);
+
+  // Background heartbeat listener for instant force updates across all open tabs
+  useEffect(() => {
+    checkSystemVersion();
+    const interval = setInterval(checkSystemVersion, 15000);
+    window.addEventListener("focus", checkSystemVersion);
+    document.addEventListener("visibilitychange", checkSystemVersion);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", checkSystemVersion);
+      document.removeEventListener("visibilitychange", checkSystemVersion);
+    };
+  }, [checkSystemVersion]);
 
   // Load saved category state from localStorage so it never defaults away from user choice
   useEffect(() => {
@@ -426,6 +484,7 @@ export default function PortfolioPage() {
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenForceUpdate={() => setIsAdminForceUpdateOpen(true)}
         onOpenAddProject={() => {
           setEditingProject(null);
           setIsProjectModalOpen(true);
@@ -556,6 +615,22 @@ export default function PortfolioPage() {
           }
         }}
         onToast={showToast}
+      />
+
+      {/* Admin Broadcast Force Update Modal */}
+      <AdminForceUpdateModal
+        isOpen={isAdminForceUpdateOpen}
+        onClose={() => setIsAdminForceUpdateOpen(false)}
+        onSuccess={() => checkSystemVersion()}
+        onToast={showToast}
+      />
+
+      {/* Mandatory Blocking Screen for all users when an update is forced */}
+      <ForceUpdateModal
+        isOpen={isForceUpdateRequired}
+        targetVersion={targetForceVersion}
+        updateMessage={forceUpdateMessage}
+        forceTimestamp={forceTimestamp}
       />
 
       {/* Footer */}

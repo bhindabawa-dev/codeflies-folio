@@ -1,5 +1,6 @@
 import prisma from "./prisma";
 import { Project, User, UserRole, UserStatus } from "./types";
+import { APP_VERSION } from "./version";
 
 const INITIAL_PROJECTS: Project[] = [];
 
@@ -124,6 +125,15 @@ export async function ensureDatabaseSchema(): Promise<boolean> {
     `);
     await prisma.$executeRawUnsafe(`
       DELETE FROM "User" WHERE "id" IN ('user_member', 'user_revoked');
+    `);
+
+    // 6. Create SystemConfig table for Force Updates
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "SystemConfig" (
+        "key" TEXT NOT NULL PRIMARY KEY,
+        "value" TEXT NOT NULL,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     isSchemaInitialized = true;
@@ -498,4 +508,86 @@ export async function updateUserAccess(
     return updated;
   }
   return null;
+}
+
+// System Configuration & Force Update Management
+const inMemoryConfig = new Map<string, string>();
+
+export async function getSystemConfig(key: string, defaultValue = ""): Promise<string> {
+  const dbConnected = await testDatabaseConnection();
+  if (dbConnected) {
+    try {
+      const config = await prisma.systemConfig.findUnique({
+        where: { key },
+      });
+      if (config) {
+        inMemoryConfig.set(key, config.value);
+        return config.value;
+      }
+    } catch (err) {
+      console.warn(`Prisma getSystemConfig failed for ${key}:`, err);
+    }
+  }
+  return inMemoryConfig.get(key) || defaultValue;
+}
+
+export async function setSystemConfig(key: string, value: string): Promise<void> {
+  inMemoryConfig.set(key, value);
+  const dbConnected = await testDatabaseConnection();
+  if (dbConnected) {
+    try {
+      await prisma.systemConfig.upsert({
+        where: { key },
+        update: { value },
+        create: { key, value },
+      });
+    } catch (err) {
+      console.warn(`Prisma setSystemConfig failed for ${key}:`, err);
+    }
+  }
+}
+
+export async function getForceUpdateState(): Promise<{
+  currentVersion: string;
+  forceTimestamp: number;
+  message: string;
+}> {
+  const currentVersion = await getSystemConfig("FORCE_UPDATE_VERSION", APP_VERSION);
+  const rawTimestamp = await getSystemConfig("FORCE_UPDATE_TIMESTAMP", "0");
+  const message = await getSystemConfig(
+    "FORCE_UPDATE_MESSAGE",
+    "A critical system update is required. Please refresh to load the latest features and security updates."
+  );
+
+  return {
+    currentVersion: currentVersion || APP_VERSION,
+    forceTimestamp: Number(rawTimestamp) || 0,
+    message,
+  };
+}
+
+export async function triggerForceUpdate(data: {
+  version?: string;
+  message?: string;
+}): Promise<{
+  currentVersion: string;
+  forceTimestamp: number;
+  message: string;
+}> {
+  const newVersion = (data.version || APP_VERSION).trim();
+  const timestamp = Date.now().toString();
+  const updateMessage = (
+    data.message ||
+    "An administrator has published a mandatory portfolio update. Please clear cache and refresh now to proceed."
+  ).trim();
+
+  await setSystemConfig("FORCE_UPDATE_VERSION", newVersion);
+  await setSystemConfig("FORCE_UPDATE_TIMESTAMP", timestamp);
+  await setSystemConfig("FORCE_UPDATE_MESSAGE", updateMessage);
+
+  return {
+    currentVersion: newVersion,
+    forceTimestamp: Number(timestamp),
+    message: updateMessage,
+  };
 }

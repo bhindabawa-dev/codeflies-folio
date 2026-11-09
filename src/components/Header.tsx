@@ -2,7 +2,7 @@
 
 import { User } from "@/lib/types";
 import { APP_VERSION } from "@/lib/version";
-import { LogIn, LogOut, Plus, ShieldCheck, Users } from "lucide-react";
+import { LogIn, LogOut, Plus, ShieldCheck, Users, Zap } from "lucide-react";
 import React from "react";
 
 interface HeaderProps {
@@ -10,6 +10,7 @@ interface HeaderProps {
   onOpenAuth: () => void;
   onOpenAdmin: () => void;
   onOpenAddProject: () => void;
+  onOpenForceUpdate: () => void;
   onLogout: () => void;
 }
 
@@ -18,6 +19,7 @@ export function Header({
   onOpenAuth,
   onOpenAdmin,
   onOpenAddProject,
+  onOpenForceUpdate,
   onLogout,
 }: HeaderProps) {
   const canAddProject = Boolean(user && user.status === "ACTIVE");
@@ -60,14 +62,25 @@ export function Header({
           )}
 
           {isAdmin && (
-            <button
-              onClick={onOpenAdmin}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#cbc3d5] text-[#0b1c30] text-xs sm:text-sm font-medium hover:border-[#5e35b1] hover:text-[#5e35b1] transition-all shadow-sm active:scale-95"
-              title="Manage Users & Access"
-            >
-              <Users className="w-4 h-4 text-[#5e35b1]" />
-              <span className="hidden sm:inline">User Access</span>
-            </button>
+            <>
+              <button
+                onClick={onOpenForceUpdate}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-semibold hover:bg-red-100 hover:border-red-300 transition-all shadow-2xs active:scale-95"
+                title="Force push an immediate update to all users"
+              >
+                <Zap className="w-4 h-4 text-red-600" />
+                <span className="hidden sm:inline">Force Update</span>
+              </button>
+
+              <button
+                onClick={onOpenAdmin}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#cbc3d5] text-[#0b1c30] text-xs sm:text-sm font-medium hover:border-[#5e35b1] hover:text-[#5e35b1] transition-all shadow-sm active:scale-95"
+                title="Manage Users & Access"
+              >
+                <Users className="w-4 h-4 text-[#5e35b1]" />
+                <span className="hidden sm:inline">User Access</span>
+              </button>
+            </>
           )}
 
           {user ? (
