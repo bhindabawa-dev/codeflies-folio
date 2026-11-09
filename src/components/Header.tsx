@@ -2,13 +2,14 @@
 
 import { User } from "@/lib/types";
 import { APP_VERSION } from "@/lib/version";
-import { LogIn, LogOut, Plus, ShieldCheck, Users, Zap } from "lucide-react";
+import { FileSpreadsheet, LogIn, LogOut, Plus, ShieldCheck, Users, Zap } from "lucide-react";
 import React from "react";
 
 interface HeaderProps {
   user: User | null;
   onOpenAuth: () => void;
   onOpenAdmin: () => void;
+  onOpenImport: () => void;
   onOpenAddProject: () => void;
   onOpenForceUpdate: () => void;
   onLogout: () => void;
@@ -18,6 +19,7 @@ export function Header({
   user,
   onOpenAuth,
   onOpenAdmin,
+  onOpenImport,
   onOpenAddProject,
   onOpenForceUpdate,
   onLogout,
@@ -63,6 +65,15 @@ export function Header({
 
           {isAdmin && (
             <>
+              <button
+                onClick={onOpenImport}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs sm:text-sm font-semibold hover:bg-emerald-100 hover:border-emerald-300 transition-all shadow-2xs active:scale-95"
+                title="Bulk import projects from an Excel (.xlsx) or CSV file"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span className="hidden sm:inline">Import Excel</span>
+              </button>
+
               <button
                 onClick={onOpenForceUpdate}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-semibold hover:bg-red-100 hover:border-red-300 transition-all shadow-2xs active:scale-95"

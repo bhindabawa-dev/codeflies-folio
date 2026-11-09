@@ -232,6 +232,89 @@ export async function createProject(data: {
   return newProj;
 }
 
+export async function bulkCreateProjects(
+  items: Array<{
+    title: string;
+    url: string;
+    description?: string;
+    techStack: string[];
+    tags: string[];
+    category?: string;
+  }>
+): Promise<{ count: number; projects: Project[] }> {
+  if (!items || items.length === 0) {
+    return { count: 0, projects: [] };
+  }
+
+  const dbConnected = await testDatabaseConnection();
+  const currentTotal = globalData.inMemoryProjects?.length || 0;
+  const createdProjects: Project[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const normalizedCategory = ["website", "mobile app", "digital marketing"].includes(
+      (item.category || "").toLowerCase().trim()
+    )
+      ? (item.category || "").toLowerCase().trim()
+      : "website";
+
+    const proj: Project = {
+      id: `proj_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 7)}`,
+      title: item.title.trim(),
+      url: item.url.trim(),
+      description:
+        item.description?.trim() || `${item.title.trim()}: Live showcase at ${item.url.trim()}`,
+      techStack: item.techStack || [],
+      tags: item.tags || [],
+      category: normalizedCategory,
+      order: currentTotal + i + 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    createdProjects.push(proj);
+  }
+
+  if (dbConnected) {
+    try {
+      await prisma.project.createMany({
+        data: createdProjects.map((p) => ({
+          id: p.id,
+          title: p.title,
+          url: p.url,
+          description: p.description,
+          techStack: p.techStack,
+          tags: p.tags,
+          category: p.category,
+          order: p.order,
+        })),
+      });
+    } catch (err) {
+      console.warn("Prisma bulk create failed, attempting sequential insertion:", err);
+      for (const p of createdProjects) {
+        try {
+          await prisma.project.create({
+            data: {
+              id: p.id,
+              title: p.title,
+              url: p.url,
+              description: p.description,
+              techStack: p.techStack,
+              tags: p.tags,
+              category: p.category,
+              order: p.order,
+            },
+          });
+        } catch {
+          // ignore individual item failure
+        }
+      }
+    }
+  }
+
+  globalData.inMemoryProjects = [...createdProjects, ...(globalData.inMemoryProjects || [])];
+  return { count: createdProjects.length, projects: createdProjects };
+}
+
 export async function updateProject(
   id: string,
   data: Partial<Omit<Project, "id" | "createdAt" | "updatedAt">> & { category?: string }

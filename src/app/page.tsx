@@ -2,6 +2,7 @@
 
 import { AccessDeniedView } from "@/components/AccessDeniedView";
 import { AdminForceUpdateModal } from "@/components/AdminForceUpdateModal";
+import { AdminImportModal } from "@/components/AdminImportModal";
 import { AdminUsersModal } from "@/components/AdminUsersModal";
 import { AnonymousGateView } from "@/components/AnonymousGateView";
 import { AuthModal } from "@/components/AuthModal";
@@ -36,6 +37,7 @@ export default function PortfolioPage() {
   const [toast, setToast] = useState<ToastData | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminImportOpen, setIsAdminImportOpen] = useState(false);
   const [isAdminForceUpdateOpen, setIsAdminForceUpdateOpen] = useState(false);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -484,6 +486,7 @@ export default function PortfolioPage() {
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenImport={() => setIsAdminImportOpen(true)}
         onOpenForceUpdate={() => setIsAdminForceUpdateOpen(true)}
         onOpenAddProject={() => {
           setEditingProject(null);
@@ -599,7 +602,16 @@ export default function PortfolioPage() {
       <AdminUsersModal
         isOpen={isAdminOpen}
         currentUser={user}
+        onOpenImport={() => setIsAdminImportOpen(true)}
         onClose={() => setIsAdminOpen(false)}
+        onToast={showToast}
+      />
+
+      {/* Admin Excel / CSV Spreadsheet Importer */}
+      <AdminImportModal
+        isOpen={isAdminImportOpen}
+        onClose={() => setIsAdminImportOpen(false)}
+        onSuccess={() => fetchProjects()}
         onToast={showToast}
       />
 
