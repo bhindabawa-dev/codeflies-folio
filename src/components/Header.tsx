@@ -86,9 +86,8 @@ export function Header({
           {user ? (
             <div className="flex items-center gap-2 pl-1 border-l border-[#cbc3d5]/60 sm:border-0 sm:pl-0">
               <div
-                onClick={onOpenAuth}
-                className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white border border-[#e5eeff] text-[#0b1c30] text-xs shadow-sm cursor-pointer hover:border-[#5e35b1] transition-colors"
-                title="Click to switch account"
+                className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white border border-[#e5eeff] text-[#0b1c30] text-xs shadow-xs select-none"
+                title={`Signed in as ${user.email} (${user.role})`}
               >
                 <div className="w-6 h-6 rounded-full bg-[#eaddff] text-[#24005b] font-semibold flex items-center justify-center text-[11px]">
                   {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}

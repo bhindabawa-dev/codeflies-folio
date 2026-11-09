@@ -385,15 +385,12 @@ export async function upsertUser(data: {
   status?: UserStatus;
 }): Promise<User> {
   const normalized = data.email.toLowerCase().trim();
-  const isAdminEmail =
-    normalized === "info@codeflies.com" ||
-    normalized === "admin@codeflies.com" ||
-    normalized.includes("admin@") ||
-    normalized === (process.env.ADMIN_DEFAULT_EMAIL || "").toLowerCase();
+  const adminEmail = (process.env.ADMIN_DEFAULT_EMAIL || "info@codeflies.com").toLowerCase().trim();
+  const isAdminEmail = normalized === adminEmail;
 
-  const defaultRole: UserRole = isAdminEmail ? "ADMIN" : (data.role || "USER");
-  // If admin email, always active; others default to ACTIVE
-  const defaultStatus: UserStatus = isAdminEmail ? "ACTIVE" : (data.status || "ACTIVE");
+  // Strict role assignment: only explicit role or exact admin email match
+  const defaultRole: UserRole = data.role || (isAdminEmail ? "ADMIN" : "USER");
+  const defaultStatus: UserStatus = data.status || "ACTIVE";
   const fallbackName = data.name || normalized.split("@")[0];
 
   const dbConnected = await testDatabaseConnection();

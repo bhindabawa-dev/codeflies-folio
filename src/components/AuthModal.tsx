@@ -1,7 +1,7 @@
 "use client";
 
 import { User } from "@/lib/types";
-import { KeyRound, LogIn, ShieldAlert, ShieldCheck, UserCheck, X } from "lucide-react";
+import { Eye, EyeOff, Lock, LogIn, Mail, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import React, { useState } from "react";
 
 interface AuthModalProps {
@@ -15,24 +15,42 @@ interface AuthModalProps {
 
 export function AuthModal({
   isOpen,
-  currentUser,
   googleConfigured,
   onClose,
   onLoginSuccess,
   onToast,
 }: AuthModalProps) {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const handleQuickLogin = async (demoRole: "admin") => {
+  const isAdminEmail =
+    email.trim().toLowerCase() === "info@codeflies.com" ||
+    email.trim().toLowerCase().includes("admin");
+
+  const handleCustomLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+
     try {
       setLoading(true);
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ demoRole }),
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password: password,
+        }),
       });
       const data = await res.json();
 
@@ -40,42 +58,21 @@ export function AuthModal({
         onLoginSuccess(data.user);
         onToast(
           "Signed In",
-          `Welcome, ${data.user.name || data.user.email}! Role: ${data.user.role}`,
+          `Logged in as ${data.user.name || data.user.email} (${data.user.role})`,
           "success"
         );
+        setEmail("");
+        setPassword("");
         onClose();
       } else {
-        onToast("Login Failed", data.error || "Could not log in", "warning");
+        const errorText = data.error || "Authentication failed. Please check your credentials.";
+        setErrorMessage(errorText);
+        onToast("Login Failed", errorText, "warning");
       }
     } catch {
-      onToast("Error", "Network error during login", "warning");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCustomLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-
-    try {
-      setLoading(true);
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const data = await res.json();
-
-      if (res.ok && data.user) {
-        onLoginSuccess(data.user);
-        onToast("Signed In", `Logged in as ${data.user.email}`, "success");
-        onClose();
-      } else {
-        onToast("Login Failed", data.error || "Could not log in", "warning");
-      }
-    } catch {
-      onToast("Error", "Network error during login", "warning");
+      const netError = "Network error during login. Please try again.";
+      setErrorMessage(netError);
+      onToast("Error", netError, "warning");
     } finally {
       setLoading(false);
     }
@@ -85,7 +82,7 @@ export function AuthModal({
     if (!googleConfigured) {
       onToast(
         "Google OAuth Not Configured",
-        "Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env or use Quick Test Sign In below.",
+        "Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to environment variables or sign in with your email below.",
         "info"
       );
       return;
@@ -94,11 +91,12 @@ export function AuthModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-[#e5eeff] overflow-hidden">
+        {/* Header */}
         <div className="px-6 py-4 border-b border-[#eff4ff] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#eaddff] text-[#461599] flex items-center justify-center font-bold">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#eaddff] text-[#461599] flex items-center justify-center font-bold text-sm">
               C
             </div>
             <div>
@@ -119,10 +117,20 @@ export function AuthModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-4">
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2 animate-in fade-in">
+              <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Google OAuth Button */}
           <button
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white border border-[#cbdbf5] hover:border-[#5e35b1] hover:bg-[#eff4ff]/30 text-sm font-semibold text-[#0b1c30] transition-all shadow-xs active:scale-98"
+            type="button"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl bg-white border border-[#cbdbf5] hover:border-[#5e35b1] hover:bg-[#eff4ff]/30 text-sm font-semibold text-[#0b1c30] transition-all shadow-2xs active:scale-98"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -145,60 +153,82 @@ export function AuthModal({
             <span>Continue with Google</span>
           </button>
 
-          {!googleConfigured && (
-            <p className="text-[11px] text-[#7b7484] text-center">
-              Google OAuth keys can be set in <code>.env</code>. You can test immediately using the 1-click accounts below.
-            </p>
-          )}
-
-          <div className="relative flex items-center justify-center">
+          <div className="relative flex items-center justify-center my-3">
             <span className="w-full border-t border-[#eff4ff]"></span>
-            <span className="absolute bg-white px-3 text-[11px] uppercase tracking-wider text-[#7b7484] font-semibold">
-              Admin Quick Access
+            <span className="absolute bg-white px-3 text-[11px] uppercase tracking-wider text-[#7b7484] font-medium">
+              Or sign in with email
             </span>
           </div>
 
-          <div className="space-y-2">
-            <button
-              disabled={loading}
-              onClick={() => handleQuickLogin("admin")}
-              className="w-full p-3 rounded-xl border border-[#cbdbf5] hover:border-[#5e35b1] hover:bg-[#eff4ff]/60 transition-all flex items-center justify-between text-left group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#eaddff] text-[#461599] flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-semibold text-[#0b1c30] group-hover:text-[#5e35b1]">
-                    Admin (Full Access & User Control)
-                  </div>
-                  <div className="text-[11px] text-[#494453]">info@codeflies.com</div>
-                </div>
+          {/* Secure Email & Password Form */}
+          <form onSubmit={handleCustomLogin} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-semibold text-[#0b1c30] mb-1">
+                Work Email Address
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  placeholder="name@codeflies.com"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#eff4ff] border border-[#cbdbf5] text-[#0b1c30] placeholder-[#7b7484] focus:outline-none focus:ring-1 focus:ring-[#5e35b1] focus:bg-white transition-colors"
+                />
+                <Mail className="w-4 h-4 text-[#7b7484] absolute left-3 top-2.5 pointer-events-none" />
               </div>
-              <span className="text-[11px] font-semibold text-[#5e35b1]">Login →</span>
-            </button>
-          </div>
-
-          <form onSubmit={handleCustomLogin} className="pt-2">
-            <label className="block text-xs font-semibold text-[#0b1c30] mb-1">
-              Or sign in with custom email:
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="email"
-                placeholder="name@codeflies.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl bg-[#eff4ff] border border-[#cbdbf5] text-[#0b1c30] focus:outline-none focus:ring-1 focus:ring-[#5e35b1]"
-              />
-              <button
-                type="submit"
-                disabled={loading || !email.trim()}
-                className="px-4 py-2 rounded-xl bg-[#5e35b1] text-white text-xs font-semibold hover:bg-[#461599] transition-all disabled:opacity-50 shrink-0"
-              >
-                Sign In
-              </button>
             </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-[#0b1c30]">
+                  Password
+                </label>
+                {isAdminEmail && (
+                  <span className="text-[10px] text-[#5e35b1] font-semibold flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Admin credentials required
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder={isAdminEmail ? "Enter admin password" : "•••••••• (optional for members)"}
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errorMessage) setErrorMessage(null);
+                  }}
+                  className="w-full pl-9 pr-9 py-2 text-xs rounded-xl bg-[#eff4ff] border border-[#cbdbf5] text-[#0b1c30] placeholder-[#7b7484] focus:outline-none focus:ring-1 focus:ring-[#5e35b1] focus:bg-white transition-colors"
+                />
+                <Lock className="w-4 h-4 text-[#7b7484] absolute left-3 top-2.5 pointer-events-none" />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-[#7b7484] hover:text-[#0b1c30] transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-[#7b7484] mt-1.5 leading-snug">
+                {isAdminEmail
+                  ? "Administrator accounts must provide the authorized admin password."
+                  : "Enter your Codeflies work email to access the repository."}
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !email.trim()}
+              className="w-full py-2.5 rounded-xl bg-[#5e35b1] text-white text-xs font-semibold hover:bg-[#461599] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm active:scale-98"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>{loading ? "Authenticating..." : "Sign In to Folio"}</span>
+            </button>
           </form>
         </div>
       </div>

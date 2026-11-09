@@ -25,14 +25,34 @@ export async function GET(req: NextRequest) {
 
   try {
     const profile = await exchangeGoogleCode(code, redirectUri);
-    let user = await getUserByEmail(profile.email);
+    const googleEmail = profile.email.toLowerCase().trim();
+    const adminEmail = (process.env.ADMIN_DEFAULT_EMAIL || "info@codeflies.com").toLowerCase().trim();
+    const isGoogleAdmin = googleEmail === adminEmail;
+
+    let user = await getUserByEmail(googleEmail);
 
     if (!user) {
       user = await upsertUser({
-        email: profile.email,
+        email: googleEmail,
         name: profile.name,
         image: profile.image,
+        role: isGoogleAdmin ? "ADMIN" : "USER",
+        status: "ACTIVE",
       });
+    } else if (isGoogleAdmin && user.role !== "ADMIN") {
+      user = await upsertUser({
+        email: googleEmail,
+        name: profile.name || user.name,
+        image: profile.image || user.image,
+        role: "ADMIN",
+        status: "ACTIVE",
+      });
+    }
+
+    if (user.status === "REVOKED") {
+      return NextResponse.redirect(
+        `${origin}/?error=${encodeURIComponent("Your account access has been revoked by an administrator.")}`
+      );
     }
 
     const token = await createSessionToken({
