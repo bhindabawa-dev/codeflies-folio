@@ -1,13 +1,24 @@
 "use client";
 
 import { Project, User } from "@/lib/types";
-import { Copy, ExternalLink, Globe, Megaphone, Pencil, Plus, Smartphone, Trash2 } from "lucide-react";
+import {
+  Copy,
+  ExternalLink,
+  Eye,
+  Globe,
+  Megaphone,
+  Pencil,
+  Plus,
+  Smartphone,
+  Trash2,
+} from "lucide-react";
 import React from "react";
 
 interface ProjectTableProps {
   projects: Project[];
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
+  onInspectProject?: (project: Project) => void;
   onCopyUrl: (url: string, title: string) => void;
   onCopyBlurb: (project: Project) => void;
   onAddTag: (project: Project) => void;
@@ -22,6 +33,7 @@ export function ProjectTable({
   projects,
   selectedIds,
   onToggleSelect,
+  onInspectProject,
   onCopyUrl,
   onCopyBlurb,
   onAddTag,
@@ -36,25 +48,25 @@ export function ProjectTable({
 
   if (projects.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto my-12 p-12 bg-white rounded-3xl border border-[#e5eeff] text-center shadow-lg shadow-purple-950/5">
-        <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-[#eff4ff] to-[#eaddff] text-[#5e35b1] flex items-center justify-center font-bold text-2xl mb-4 shadow-sm">
+      <div className="max-w-7xl mx-auto my-8 p-10 bg-white rounded-3xl border border-[#e5eeff] text-center shadow-lg shadow-purple-950/5">
+        <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-tr from-[#eff4ff] to-[#eaddff] text-[#5e35b1] flex items-center justify-center font-bold text-xl mb-3 shadow-sm">
           📁
         </div>
-        <h3 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#0b1c30]">
-          No projects found in directory
+        <h3 className="font-['Plus_Jakarta_Sans'] text-lg font-bold text-[#0b1c30]">
+          No projects found matching criteria
         </h3>
-        <p className="text-sm text-[#494453] mt-2 max-w-md mx-auto">
-          There are currently no projects matching this category or search filter. Add a new showcase project to start building your directory.
+        <p className="text-xs text-[#494453] mt-1.5 max-w-md mx-auto">
+          Try clearing your search query or switching to another category.
         </p>
 
         {canEdit && onOpenAddProject && (
-          <div className="mt-6">
+          <div className="mt-5">
             <button
               onClick={onOpenAddProject}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5e35b1] text-white text-sm font-semibold hover:bg-[#461599] transition-all shadow-md shadow-purple-950/10 active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#5e35b1] text-white text-xs font-semibold hover:bg-[#461599] transition-all shadow-md shadow-purple-950/10 active:scale-95"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add First Project</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add New Project</span>
             </button>
           </div>
         )}
@@ -63,34 +75,34 @@ export function ProjectTable({
   }
 
   return (
-    <section className="w-full px-4 sm:px-8 py-3 mb-16">
-      <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl shadow-purple-950/5 border border-[#e5eeff] overflow-hidden">
+    <section className="w-full px-4 sm:px-8 py-2 mb-12">
+      <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-lg shadow-purple-950/5 border border-[#e5eeff] overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-[#eff4ff]/80 text-[#494453] text-[11px] font-semibold uppercase tracking-wider border-b border-[#e5eeff]">
-                <th className="py-3 px-3 w-10 text-center" scope="col">
+                <th className="py-2.5 px-3 w-10 text-center" scope="col">
                   <span className="sr-only">Select</span>
                 </th>
-                <th className="py-3 px-3 font-semibold min-w-[200px]" scope="col">
+                <th className="py-2.5 px-3 font-semibold min-w-[200px]" scope="col">
                   PROJECT & CATEGORY
                 </th>
-                <th className="py-3 px-3 font-semibold min-w-[200px]" scope="col">
+                <th className="py-2.5 px-3 font-semibold min-w-[180px]" scope="col">
                   LIVE URL
                 </th>
-                <th className="py-3 px-3 font-semibold min-w-[180px]" scope="col">
+                <th className="py-2.5 px-3 font-semibold min-w-[160px]" scope="col">
                   TECH ARCHITECTURE
                 </th>
-                <th className="py-3 px-3 font-semibold min-w-[160px]" scope="col">
+                <th className="py-2.5 px-3 font-semibold min-w-[160px]" scope="col">
                   TAGS
                 </th>
-                <th className="py-3 px-3 text-right font-semibold w-28" scope="col">
+                <th className="py-2.5 px-3 text-right font-semibold w-32" scope="col">
                   ACTION
                 </th>
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-[#eff4ff] text-sm text-[#0b1c30]">
+            <tbody className="divide-y divide-[#eff4ff] text-xs sm:text-sm text-[#0b1c30]">
               {projects.map((proj) => {
                 const isChecked = selectedIds.has(proj.id);
                 const displayUrl = proj.url.replace(/^https?:\/\//, "").replace(/\/$/, "");
@@ -105,7 +117,7 @@ export function ProjectTable({
                       isChecked ? "bg-[#eff4ff]/30" : ""
                     }`}
                   >
-                    <td className="py-3.5 px-3 text-center align-middle">
+                    <td className="py-2.5 px-3 text-center align-middle">
                       <input
                         type="checkbox"
                         checked={isChecked}
@@ -114,10 +126,14 @@ export function ProjectTable({
                       />
                     </td>
 
-                    <td className="py-3.5 px-3 align-middle">
+                    <td className="py-2.5 px-3 align-middle">
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-['Plus_Jakarta_Sans'] font-bold text-[#0b1c30] text-[15px]">
+                          <span
+                            onClick={() => onInspectProject?.(proj)}
+                            className="font-['Plus_Jakarta_Sans'] font-bold text-[#0b1c30] text-[14px] hover:text-[#5e35b1] cursor-pointer transition-colors"
+                            title="Click to inspect pitch"
+                          >
                             {proj.title}
                           </span>
 
@@ -132,102 +148,114 @@ export function ProjectTable({
                             }`}
                           >
                             {cat === "mobile app" ? (
-                              <Smartphone className="w-3 h-3" />
+                              <Smartphone className="w-2.5 h-2.5" />
                             ) : cat === "digital marketing" ? (
-                              <Megaphone className="w-3 h-3" />
+                              <Megaphone className="w-2.5 h-2.5" />
                             ) : (
-                              <Globe className="w-3 h-3" />
+                              <Globe className="w-2.5 h-2.5" />
                             )}
                             <span>{proj.category || "website"}</span>
                           </span>
                         </div>
 
                         {proj.description && (
-                          <span className="text-[11px] text-[#494453] line-clamp-1 max-w-xs mt-0.5" title={proj.description}>
+                          <span className="text-xs text-[#494453] line-clamp-1 max-w-sm mt-0.5">
                             {proj.description}
                           </span>
                         )}
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 align-middle">
+                    <td className="py-2.5 px-3 align-middle">
                       <div className="flex items-center gap-1.5">
                         <a
                           href={proj.url}
                           target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-['JetBrains_Mono'] text-xs text-[#461599] hover:underline flex items-center gap-1 group font-medium"
+                          rel="noreferrer"
+                          className="font-mono text-xs text-[#461599] hover:underline flex items-center gap-1 truncate max-w-[200px]"
                           title={proj.url}
                         >
-                          <span>{truncatedUrl}</span>
-                          <ExternalLink className="w-3 h-3 text-[#5e35b1] group-hover:translate-x-0.5 transition-transform" />
+                          <span className="truncate">{truncatedUrl}</span>
+                          <ExternalLink className="w-3 h-3 shrink-0" />
                         </a>
-
                         <button
                           onClick={() => onCopyUrl(proj.url, proj.title)}
-                          className="p-1 text-[#494453] hover:text-[#5e35b1] hover:bg-[#e5eeff] rounded-md transition-colors"
-                          title="Copy live link"
+                          className="p-1 text-[#494453] hover:text-[#5e35b1] rounded hover:bg-[#eff4ff] transition-colors"
+                          title="Copy URL"
                         >
                           <Copy className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 align-middle">
-                      <div className="flex flex-wrap gap-1">
-                        {proj.techStack.length === 0 ? (
-                          <span className="text-xs text-[#7b7484] italic">—</span>
-                        ) : (
-                          proj.techStack.map((tech, idx) => (
-                            <span
-                              key={idx}
+                    <td className="py-2.5 px-3 align-middle">
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {proj.techStack && proj.techStack.length > 0 ? (
+                          proj.techStack.map((tech) => (
+                            <button
+                              key={tech}
                               onClick={() => onTagClick(tech)}
-                              className="px-2 py-0.5 rounded bg-[#e5eeff] text-[#0b1c30] font-['JetBrains_Mono'] text-[11px] font-medium cursor-pointer hover:bg-[#dce9ff] transition-colors"
+                              className="px-2 py-0.5 rounded bg-[#eff4ff] text-[#461599] font-['JetBrains_Mono'] text-[11px] font-medium hover:bg-[#eaddff] transition-colors"
                             >
                               {tech}
-                            </span>
+                            </button>
                           ))
+                        ) : (
+                          <span className="text-xs text-[#7b7484] italic">—</span>
                         )}
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 align-middle">
-                      <div className="flex flex-wrap items-center gap-1">
-                        {proj.tags.map((tag, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => onTagClick(tag)}
-                            className="px-2 py-0.5 rounded-full bg-[#eaddff]/60 text-[#461599] text-[11px] font-semibold hover:bg-[#d1bcff] transition-colors"
-                          >
-                            {tag.startsWith("#") ? tag : `#${tag}`}
-                          </button>
-                        ))}
-
+                    <td className="py-2.5 px-3 align-middle">
+                      <div className="flex flex-wrap items-center gap-1 max-w-[220px]">
+                        {proj.tags && proj.tags.length > 0 ? (
+                          proj.tags.map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={() => onTagClick(tag)}
+                              className="px-2 py-0.5 rounded-full bg-[#f8f9ff] text-[#5e35b1] text-xs font-medium hover:bg-[#eaddff] transition-colors border border-[#e5eeff]"
+                            >
+                              {tag}
+                            </button>
+                          ))
+                        ) : (
+                          <span className="text-xs text-[#7b7484] italic">—</span>
+                        )}
                         <button
                           onClick={() => onAddTag(proj)}
-                          className="px-1.5 py-0.5 rounded-full bg-[#eff4ff] text-[#494453] hover:text-[#0b1c30] hover:bg-[#e5eeff] text-[11px] font-medium flex items-center gap-0.5 border border-[#cbdbf5]/50 transition-colors"
-                          title="Add Pitch Tag"
+                          className="px-1.5 py-0.5 rounded text-[10px] text-[#7b7484] hover:text-[#5e35b1] hover:bg-[#eff4ff] border border-dashed border-[#cbdbf5] transition-colors"
+                          title="Add Tag"
                         >
-                          <Plus className="w-2.5 h-2.5" />
-                          Tag
+                          + Tag
                         </button>
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 align-middle text-right">
+                    <td className="py-2.5 px-3 text-right align-middle">
                       <div className="flex items-center justify-end gap-1">
+                        {/* Quick View / Inspect Drawer */}
+                        {onInspectProject && (
+                          <button
+                            onClick={() => onInspectProject(proj)}
+                            className="p-1.5 rounded-lg text-[#7b7484] hover:text-[#5e35b1] hover:bg-[#eff4ff] transition-colors"
+                            title="Quick View & Pitch Deck"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         <button
                           onClick={() => onCopyBlurb(proj)}
-                          className="p-1.5 rounded-lg text-[#494453] hover:text-[#5e35b1] hover:bg-[#e5eeff] transition-colors"
-                          title="Copy sales pitch blurb"
+                          className="p-1.5 rounded-lg text-[#494453] hover:text-[#5e35b1] hover:bg-[#eff4ff] transition-colors"
+                          title="Copy Full Pitch"
                         >
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5" />
                         </button>
 
                         {canEdit && (
                           <button
                             onClick={() => onEditProject(proj)}
-                            className="p-1.5 rounded-lg text-[#494453] hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                            className="p-1.5 rounded-lg text-[#494453] hover:text-[#5e35b1] hover:bg-[#eff4ff] transition-colors"
                             title="Edit Project"
                           >
                             <Pencil className="w-3.5 h-3.5" />

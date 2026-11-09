@@ -9,11 +9,14 @@ import { AuthModal } from "@/components/AuthModal";
 import { BatchActionBar, CopyFormat } from "@/components/BatchActionBar";
 import { ForceUpdateModal } from "@/components/ForceUpdateModal";
 import { Header } from "@/components/Header";
+import { ProjectDrawer } from "@/components/ProjectDrawer";
+import { ProjectGridView } from "@/components/ProjectGridView";
 import { ProjectModal } from "@/components/ProjectModal";
 import { ProjectTable } from "@/components/ProjectTable";
 import { CategoryCount, SearchHero } from "@/components/SearchHero";
 import { TagModal } from "@/components/TagModal";
 import { Toast, ToastData } from "@/components/Toast";
+import { exportProjectsToCSV, exportProjectsToExcel } from "@/lib/export";
 import { Project, ProjectCategory, User } from "@/lib/types";
 import { APP_VERSION } from "@/lib/version";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -32,6 +35,7 @@ export default function PortfolioPage() {
   const [activeFilter, setActiveFilter] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
   // Modals & UI
   const [toast, setToast] = useState<ToastData | null>(null);
@@ -42,6 +46,7 @@ export default function PortfolioPage() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [tagModalProject, setTagModalProject] = useState<Project | null>(null);
+  const [inspectingProject, setInspectingProject] = useState<Project | null>(null);
 
   // Force Update State (Real-time lockout when admin triggers update)
   const [isForceUpdateRequired, setIsForceUpdateRequired] = useState(false);
@@ -108,6 +113,10 @@ export default function PortfolioPage() {
       ) {
         setSelectedCategory(saved.toLowerCase().trim());
       }
+      const savedView = localStorage.getItem("codeflies_portfolio_view_mode");
+      if (savedView === "grid" || savedView === "table") {
+        setViewMode(savedView);
+      }
     } catch {
       // Ignore localStorage issues
     }
@@ -120,6 +129,63 @@ export default function PortfolioPage() {
       localStorage.setItem(CATEGORY_STORAGE_KEY, clean);
     } catch {
       // Ignore
+    }
+  };
+
+  const handleViewModeChange = (mode: "table" | "grid") => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem("codeflies_portfolio_view_mode", mode);
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleExportExcel = () => {
+    const targetProjects =
+      selectedIds.size > 0
+        ? filteredProjects.filter((p) => selectedIds.has(p.id))
+        : filteredProjects;
+
+    if (targetProjects.length === 0) {
+      showToast("No Projects", "There are no projects to export.", "info");
+      return;
+    }
+
+    const success = exportProjectsToExcel(
+      targetProjects,
+      `codeflies_portfolio_${selectedCategory}_${Date.now()}.xlsx`
+    );
+    if (success) {
+      showToast(
+        "Excel Exported",
+        `Exported ${targetProjects.length} projects to Excel spreadsheet (.xlsx)`,
+        "success"
+      );
+    }
+  };
+
+  const handleExportCSV = () => {
+    const targetProjects =
+      selectedIds.size > 0
+        ? filteredProjects.filter((p) => selectedIds.has(p.id))
+        : filteredProjects;
+
+    if (targetProjects.length === 0) {
+      showToast("No Projects", "There are no projects to export.", "info");
+      return;
+    }
+
+    const success = exportProjectsToCSV(
+      targetProjects,
+      `codeflies_portfolio_${selectedCategory}_${Date.now()}.csv`
+    );
+    if (success) {
+      showToast(
+        "CSV Exported",
+        `Exported ${targetProjects.length} projects to CSV file (.csv)`,
+        "success"
+      );
     }
   };
 
@@ -515,7 +581,7 @@ export default function PortfolioPage() {
           />
         ) : (
           <>
-            {/* Hero Search Section with Persistent Category Switcher & Auto-suggestions */}
+            {/* Dynamic Search Hero (Transitions to thin top bar as soon as user types) */}
             <SearchHero
               searchTerm={searchTerm}
               onSearchChange={(val) => {
@@ -537,9 +603,12 @@ export default function PortfolioPage() {
               }}
               availableTags={availableTags}
               availableTechStacks={availableTechStacks}
+              totalResultsCount={filteredProjects.length}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
             />
 
-            {/* Sticky Batch Multi-Copy Bar */}
+            {/* Sticky Batch Multi-Copy & Export Bar */}
             <BatchActionBar
               totalCount={filteredProjects.length}
               selectedCount={filteredProjects.filter((p) => selectedIds.has(p.id)).length}
@@ -550,31 +619,58 @@ export default function PortfolioPage() {
               onToggleSelectAll={handleToggleSelectAll}
               onCopyAll={handleCopyAll}
               onClearSelection={() => setSelectedIds(new Set())}
+              onExportExcel={handleExportExcel}
+              onExportCSV={handleExportCSV}
             />
 
-            {/* Futuristic Tabular Directory Table */}
-            <ProjectTable
-              projects={filteredProjects}
-              selectedIds={selectedIds}
-              onToggleSelect={handleToggleSelect}
-              onCopyUrl={handleCopyUrl}
-              onCopyBlurb={handleCopyBlurb}
-              onAddTag={(proj) => setTagModalProject(proj)}
-              onTagClick={(tag) => {
-                setSearchTerm(tag);
-                showToast("Search Filter Injected", `Searching for: ${tag}`, "info");
-              }}
-              onEditProject={(proj) => {
-                setEditingProject(proj);
-                setIsProjectModalOpen(true);
-              }}
-              onDeleteProject={handleDeleteProject}
-              onOpenAddProject={() => {
-                setEditingProject(null);
-                setIsProjectModalOpen(true);
-              }}
-              user={user}
-            />
+            {/* View Mode Switcher: Table View or Modern Card Grid View */}
+            {viewMode === "grid" ? (
+              <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-2">
+                <ProjectGridView
+                  projects={filteredProjects}
+                  selectedIds={selectedIds}
+                  onToggleSelect={handleToggleSelect}
+                  onInspectProject={(proj) => setInspectingProject(proj)}
+                  onCopyUrl={handleCopyUrl}
+                  onCopyBlurb={handleCopyBlurb}
+                  onAddTag={(proj) => setTagModalProject(proj)}
+                  onTagClick={(tag) => {
+                    setSearchTerm(tag);
+                    showToast("Search Filter Injected", `Searching for: ${tag}`, "info");
+                  }}
+                  onEditProject={(proj) => {
+                    setEditingProject(proj);
+                    setIsProjectModalOpen(true);
+                  }}
+                  onDeleteProject={handleDeleteProject}
+                  user={user}
+                />
+              </div>
+            ) : (
+              <ProjectTable
+                projects={filteredProjects}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onInspectProject={(proj) => setInspectingProject(proj)}
+                onCopyUrl={handleCopyUrl}
+                onCopyBlurb={handleCopyBlurb}
+                onAddTag={(proj) => setTagModalProject(proj)}
+                onTagClick={(tag) => {
+                  setSearchTerm(tag);
+                  showToast("Search Filter Injected", `Searching for: ${tag}`, "info");
+                }}
+                onEditProject={(proj) => {
+                  setEditingProject(proj);
+                  setIsProjectModalOpen(true);
+                }}
+                onDeleteProject={handleDeleteProject}
+                onOpenAddProject={() => {
+                  setEditingProject(null);
+                  setIsProjectModalOpen(true);
+                }}
+                user={user}
+              />
+            )}
           </>
         )}
       </main>
@@ -597,6 +693,24 @@ export default function PortfolioPage() {
         project={tagModalProject}
         onClose={() => setTagModalProject(null)}
         onSaveTag={handleSaveTag}
+      />
+
+      {/* Quick View & Sales Pitch Drawer */}
+      <ProjectDrawer
+        isOpen={Boolean(inspectingProject)}
+        project={inspectingProject}
+        onClose={() => setInspectingProject(null)}
+        onEdit={(proj) => {
+          setEditingProject(proj);
+          setIsProjectModalOpen(true);
+        }}
+        onDelete={handleDeleteProject}
+        onTagClick={(tag) => {
+          setSearchTerm(tag);
+          showToast("Filter Injected", `Filtering by: ${tag}`, "info");
+        }}
+        onToast={showToast}
+        user={user}
       />
 
       <AdminUsersModal

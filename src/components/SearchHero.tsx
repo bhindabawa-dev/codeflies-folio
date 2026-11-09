@@ -1,6 +1,18 @@
 "use client";
 
-import { Globe, Layers, Megaphone, Search, Smartphone, Sparkles, X } from "lucide-react";
+import {
+  Globe,
+  Grid,
+  Layers,
+  List,
+  Maximize2,
+  Megaphone,
+  Minimize2,
+  Search,
+  Smartphone,
+  Sparkles,
+  X,
+} from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 export interface CategoryCount {
@@ -20,6 +32,9 @@ interface SearchHeroProps {
   onFilterSelect: (filter: string) => void;
   availableTags: string[];
   availableTechStacks: string[];
+  totalResultsCount: number;
+  viewMode: "table" | "grid";
+  onViewModeChange: (mode: "table" | "grid") => void;
 }
 
 export function SearchHero({
@@ -32,10 +47,19 @@ export function SearchHero({
   onFilterSelect,
   availableTags,
   availableTechStacks,
+  totalResultsCount,
+  viewMode,
+  onViewModeChange,
 }: SearchHeroProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const compactInputRef = useRef<HTMLInputElement>(null);
   const searchWrapperRef = useRef<HTMLDivElement>(null);
+  const compactSearchWrapperRef = useRef<HTMLDivElement>(null);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [forceCompact, setForceCompact] = useState(false);
+
+  // Automatically become a thin top bar if user starts typing, or if user toggled compact mode
+  const isCompact = forceCompact || searchTerm.trim().length > 0;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -45,23 +69,37 @@ export function SearchHero({
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        inputRef.current?.focus();
+        if (isCompact) {
+          compactInputRef.current?.focus();
+        } else {
+          inputRef.current?.focus();
+        }
       } else if (
         e.key === "/" &&
         !["INPUT", "TEXTAREA"].includes((document.activeElement as HTMLElement)?.tagName)
       ) {
         e.preventDefault();
-        inputRef.current?.focus();
+        if (isCompact) {
+          compactInputRef.current?.focus();
+        } else {
+          inputRef.current?.focus();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isCompact]);
 
-  // Close suggestions when clicked outside the search bar & suggestions dropdown
+  // Close suggestions when clicked outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(target) &&
+        compactSearchWrapperRef.current &&
+        !compactSearchWrapperRef.current.contains(target)
+      ) {
         setIsSuggestionsOpen(false);
       }
     };
@@ -76,7 +114,7 @@ export function SearchHero({
     { id: "digital marketing", label: "Digital Marketing", icon: Megaphone, count: categoryCounts["digital marketing"] },
   ];
 
-  // Search auto-suggestions based on search query
+  // Auto-suggestions based on search query
   const query = searchTerm.toLowerCase().trim();
   const suggestedCategories = [
     { name: "Website", type: "Category", categoryKey: "website" },
@@ -96,19 +134,240 @@ export function SearchHero({
     isSuggestionsOpen &&
     (suggestedCategories.length > 0 || suggestedTech.length > 0 || suggestedTags.length > 0);
 
+  // Suggestions Dropdown Popup Component
+  const renderSuggestionsDropdown = () => {
+    if (!hasSuggestions) return null;
+    return (
+      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white rounded-2xl border border-[#cbdbf5] shadow-2xl p-3.5 z-50 text-left animate-in fade-in-50">
+        <div className="text-[11px] font-semibold text-[#7b7484] uppercase tracking-wider px-2 py-0.5 flex items-center justify-between">
+          <span className="flex items-center gap-1 text-[#5e35b1]">
+            <Sparkles className="w-3.5 h-3.5" /> Suggestions
+          </span>
+          <span className="text-[10px] text-[#7b7484] font-normal">Esc to close</span>
+        </div>
+
+        {/* Categories */}
+        <div className="mt-1 pb-2 border-b border-[#eff4ff]">
+          <div className="text-[10px] text-[#7b7484] px-2 font-medium">Categories:</div>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {suggestedCategories.map((c) => (
+              <button
+                key={c.name}
+                onClick={() => {
+                  onCategoryChange(c.categoryKey);
+                  setIsSuggestionsOpen(false);
+                }}
+                className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-[#eff4ff] text-[#461599] hover:bg-[#eaddff] transition-all flex items-center gap-1 border border-[#d1bcff]/40 shadow-2xs"
+              >
+                <span>{c.name}</span>
+                <span className="text-[10px] text-[#5e35b1]/80 font-bold">
+                  ({categoryCounts[c.categoryKey as keyof CategoryCount] || 0})
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tech Stacks */}
+        {suggestedTech.length > 0 && (
+          <div className="mt-1.5 pb-2 border-b border-[#eff4ff]">
+            <div className="text-[10px] text-[#7b7484] px-2 font-medium">Tech Stacks:</div>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {suggestedTech.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    onSearchChange(t);
+                    setIsSuggestionsOpen(false);
+                  }}
+                  className="px-2 py-0.5 rounded-lg text-xs font-medium bg-[#f8f9ff] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#5e35b1] border border-[#cbdbf5]/60 transition-colors shadow-2xs"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Hashtags */}
+        {suggestedTags.length > 0 && (
+          <div className="mt-1.5">
+            <div className="text-[10px] text-[#7b7484] px-2 font-medium">Hashtags:</div>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {suggestedTags.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    onSearchChange(t);
+                    setIsSuggestionsOpen(false);
+                  }}
+                  className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#eaddff]/60 text-[#461599] hover:bg-[#d1bcff] transition-colors shadow-2xs"
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ========================================================================= */
+  /* COMPACT THIN BAR MODE (active when typing or forced compact)               */
+  /* ========================================================================= */
+  if (isCompact) {
+    return (
+      <div className="sticky top-16 z-30 w-full bg-[#f8f9ff]/95 backdrop-blur-md border-b border-[#e5eeff] py-2 px-4 sm:px-8 shadow-xs transition-all">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-2.5">
+          {/* Left: Compact Search Bar */}
+          <div
+            ref={compactSearchWrapperRef}
+            className="relative w-full md:w-[380px] lg:w-[460px] shrink-0"
+          >
+            <div className="relative flex items-center bg-white rounded-xl shadow-xs border border-[#5e35b1]/30 focus-within:border-[#5e35b1] focus-within:ring-2 focus-within:ring-[#5e35b1]/20 transition-all">
+              <div className="pl-3 flex items-center pointer-events-none text-[#5e35b1]">
+                <Search className="w-4 h-4" />
+              </div>
+
+              <input
+                ref={compactInputRef}
+                type="text"
+                value={searchTerm}
+                onFocus={() => setIsSuggestionsOpen(true)}
+                onChange={(e) => {
+                  onSearchChange(e.target.value);
+                  setIsSuggestionsOpen(true);
+                }}
+                placeholder="Search projects, stack, tags..."
+                className="w-full py-1.5 px-2.5 bg-transparent text-[#0b1c30] placeholder:text-[#7b7484] text-xs sm:text-sm focus:outline-none"
+              />
+
+              <div className="pr-2 flex items-center gap-1">
+                {searchTerm && (
+                  <button
+                    onClick={() => {
+                      onSearchChange("");
+                      compactInputRef.current?.focus();
+                    }}
+                    className="p-1 text-[#494453] hover:text-[#0b1c30] rounded transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-['JetBrains_Mono'] text-[#7b7484] bg-[#eff4ff] border border-[#cbdbf5] rounded">
+                  ⌘K
+                </kbd>
+              </div>
+            </div>
+
+            {/* Dropdown in compact mode */}
+            {renderSuggestionsDropdown()}
+          </div>
+
+          {/* Center: Inline Category Chips */}
+          <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto w-full md:w-auto py-0.5">
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              const isSelected = selectedCategory.toLowerCase() === cat.id.toLowerCase();
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => onCategoryChange(cat.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                    isSelected
+                      ? "bg-[#5e35b1] text-white shadow-2xs"
+                      : "bg-white border border-[#cbdbf5] text-[#0b1c30] hover:bg-[#eff4ff]"
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-[#5e35b1]"}`} />
+                  <span>{cat.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isSelected ? "bg-white/20 text-white" : "bg-[#eff4ff] text-[#5e35b1]"
+                    }`}
+                  >
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right: Result Count & View Switcher */}
+          <div className="hidden lg:flex items-center gap-3 shrink-0">
+            <span className="text-xs font-semibold text-[#494453]">
+              <strong className="text-[#5e35b1]">{totalResultsCount}</strong> results
+            </span>
+
+            {/* View Mode Toggle: Table vs Cards */}
+            <div className="flex items-center bg-white p-0.5 rounded-lg border border-[#cbdbf5]">
+              <button
+                onClick={() => onViewModeChange("table")}
+                className={`p-1 rounded ${
+                  viewMode === "table"
+                    ? "bg-[#5e35b1] text-white"
+                    : "text-[#7b7484] hover:text-[#0b1c30]"
+                }`}
+                title="Spreadsheet Table View"
+              >
+                <List className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onViewModeChange("grid")}
+                className={`p-1 rounded ${
+                  viewMode === "grid"
+                    ? "bg-[#5e35b1] text-white"
+                    : "text-[#7b7484] hover:text-[#0b1c30]"
+                }`}
+                title="Card Grid View"
+              >
+                <Grid className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Collapse / Expand Toggle */}
+            <button
+              onClick={() => {
+                if (searchTerm) onSearchChange("");
+                setForceCompact(false);
+              }}
+              className="p-1 rounded text-[#7b7484] hover:text-[#0b1c30] hover:bg-white transition-colors"
+              title="Expand to Full Search Hero"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ========================================================================= */
+  /* INITIAL GOOGLE-STYLE CENTERED HERO (when search is empty)                  */
+  /* ========================================================================= */
   return (
-    <section className="relative z-30 w-full px-4 sm:px-8 pt-8 pb-4 overflow-visible">
-      <div className="max-w-4xl mx-auto flex flex-col items-center text-center">
-        <h1 className="font-['Plus_Jakarta_Sans'] text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0b1c30] tracking-tight">
-          Portfolio Search
-        </h1>
-        <p className="mt-2 text-xs sm:text-sm text-[#494453] max-w-xl">
-          Instantly search, copy, and share verified Codeflies client-ready showcase URLs across Web, Mobile, and Marketing.
+    <section className="relative z-30 w-full px-4 sm:px-8 pt-6 pb-3 overflow-visible transition-all">
+      <div className="max-w-3xl mx-auto flex flex-col items-center text-center">
+        {/* Sleek Minimalist Branding */}
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#461599] to-[#5e35b1] flex items-center justify-center text-white font-bold text-sm shadow-xs">
+            C
+          </div>
+          <h1 className="font-['Plus_Jakarta_Sans'] text-2xl sm:text-3xl font-extrabold text-[#0b1c30] tracking-tight">
+            Portfolio Search
+          </h1>
+        </div>
+
+        <p className="text-xs text-[#494453] max-w-lg">
+          Search, filter, and multi-copy verified Codeflies enterprise case studies & URLs.
         </p>
 
-        {/* Search & Filter Container */}
-        <div className="w-full max-w-2xl mt-6 relative">
-          {/* Positioned wrapper solely for Search Input and its floating dropdown */}
+        {/* Google-like Centered Search Box */}
+        <div className="w-full max-w-2xl mt-4 relative">
           <div ref={searchWrapperRef} className="relative z-40">
             <div className="relative flex items-center bg-white rounded-2xl shadow-lg shadow-purple-950/5 border border-[#5e35b1]/20 focus-within:border-[#5e35b1] focus-within:ring-2 focus-within:ring-[#5e35b1]/20 transition-all">
               <div className="pl-4 flex items-center pointer-events-none text-[#5e35b1]">
@@ -125,7 +384,7 @@ export function SearchHero({
                   setIsSuggestionsOpen(true);
                 }}
                 placeholder="Search website, mobile app, tech stack, or hashtags..."
-                className="w-full py-3.5 px-3 bg-transparent text-[#0b1c30] placeholder:text-[#7b7484] text-sm sm:text-base font-normal focus:outline-none"
+                className="w-full py-3 px-3 bg-transparent text-[#0b1c30] placeholder:text-[#7b7484] text-sm sm:text-base font-normal focus:outline-none"
               />
 
               <div className="pr-3 flex items-center gap-1.5">
@@ -142,101 +401,28 @@ export function SearchHero({
                   </button>
                 )}
 
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-['JetBrains_Mono'] text-[#7b7484] bg-[#eff4ff] border border-[#cbdbf5] rounded-md">
+                <kbd className="hidden sm:inline-flex items-center px-2 py-0.5 text-[11px] font-['JetBrains_Mono'] text-[#7b7484] bg-[#eff4ff] border border-[#cbdbf5] rounded-md">
                   ⌘K
                 </kbd>
 
                 <button
                   onClick={() => {
-                    setIsSuggestionsOpen(false);
+                    setForceCompact(true);
                     inputRef.current?.focus();
                   }}
-                  className="px-4 py-2 rounded-xl bg-[#5e35b1] text-white text-xs sm:text-sm font-semibold hover:bg-[#461599] transition-all shadow-sm active:scale-95"
+                  className="px-4 py-1.5 rounded-xl bg-[#5e35b1] text-white text-xs sm:text-sm font-semibold hover:bg-[#461599] transition-all shadow-sm active:scale-95"
                 >
                   Search
                 </button>
               </div>
             </div>
 
-            {/* Interactive Search Suggestions Dropdown - attached directly to the bottom of the input and floating above everything */}
-            {hasSuggestions && (
-              <div className="absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl border border-[#cbdbf5] shadow-2xl p-3.5 z-50 text-left animate-in fade-in-50">
-                <div className="text-[11px] font-semibold text-[#7b7484] uppercase tracking-wider px-2 py-1 flex items-center justify-between">
-                  <span className="flex items-center gap-1 text-[#5e35b1]">
-                    <Sparkles className="w-3.5 h-3.5" /> Search Suggestions
-                  </span>
-                  <span className="text-[10px] text-[#7b7484] font-normal">Esc to close</span>
-                </div>
-
-                {/* Categories */}
-                <div className="mt-1 pb-2.5 border-b border-[#eff4ff]">
-                  <div className="text-[10px] text-[#7b7484] px-2 font-medium">Categories:</div>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {suggestedCategories.map((c) => (
-                      <button
-                        key={c.name}
-                        onClick={() => {
-                          onCategoryChange(c.categoryKey);
-                          setIsSuggestionsOpen(false);
-                        }}
-                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-[#eff4ff] text-[#461599] hover:bg-[#eaddff] transition-all flex items-center gap-1.5 border border-[#d1bcff]/40 shadow-2xs"
-                      >
-                        <span>{c.name}</span>
-                        <span className="text-[10px] text-[#5e35b1]/80 font-bold">
-                          ({categoryCounts[c.categoryKey as keyof CategoryCount] || 0})
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tech Stacks */}
-                {suggestedTech.length > 0 && (
-                  <div className="mt-2 pb-2.5 border-b border-[#eff4ff]">
-                    <div className="text-[10px] text-[#7b7484] px-2 font-medium">Tech Stacks:</div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {suggestedTech.map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => {
-                            onSearchChange(t);
-                            setIsSuggestionsOpen(false);
-                          }}
-                          className="px-2.5 py-1 rounded-lg text-xs font-medium bg-[#f8f9ff] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#5e35b1] border border-[#cbdbf5]/60 transition-colors shadow-2xs"
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Hashtags */}
-                {suggestedTags.length > 0 && (
-                  <div className="mt-2">
-                    <div className="text-[10px] text-[#7b7484] px-2 font-medium">Hashtags:</div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {suggestedTags.map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => {
-                            onSearchChange(t);
-                            setIsSuggestionsOpen(false);
-                          }}
-                          className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#eaddff]/60 text-[#461599] hover:bg-[#d1bcff] transition-colors shadow-2xs"
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Suggestions dropdown */}
+            {renderSuggestionsDropdown()}
           </div>
 
-          {/* Primary Category Switcher (All, Website, Mobile App, Digital Marketing) - lower z-index so dropdown floats over it */}
-          <div className="mt-5 flex items-center justify-center gap-2 flex-wrap relative z-10">
+          {/* Primary Category Switcher (All, Website, Mobile App, Digital Marketing) */}
+          <div className="mt-3.5 flex items-center justify-center gap-2 flex-wrap relative z-10">
             {categories.map((cat) => {
               const Icon = cat.icon;
               const isSelected = selectedCategory.toLowerCase() === cat.id.toLowerCase();
@@ -245,19 +431,17 @@ export function SearchHero({
                 <button
                   key={cat.id}
                   onClick={() => onCategoryChange(cat.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs ${
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-xs ${
                     isSelected
                       ? "bg-[#5e35b1] text-white shadow-md shadow-purple-950/20 scale-102"
                       : "bg-white border border-[#cbdbf5] text-[#0b1c30] hover:border-[#5e35b1]/60 hover:bg-[#f8f9ff]"
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${isSelected ? "text-white" : "text-[#5e35b1]"}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-[#5e35b1]"}`} />
                   <span>{cat.label}</span>
                   <span
-                    className={`text-[11px] px-1.5 py-0.2 rounded-full font-bold ${
-                      isSelected
-                        ? "bg-white/20 text-white"
-                        : "bg-[#eff4ff] text-[#5e35b1]"
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isSelected ? "bg-white/20 text-white" : "bg-[#eff4ff] text-[#5e35b1]"
                     }`}
                   >
                     {cat.count}
@@ -267,11 +451,11 @@ export function SearchHero({
             })}
           </div>
 
-          {/* Additional Filter Preset Pills if available */}
+          {/* Preset Hashtag Pills */}
           {availableTags.length > 0 && (
-            <div className="mt-3.5 flex items-center justify-center gap-1.5 flex-wrap relative z-10">
-              <span className="text-[11px] text-[#7b7484] font-medium mr-1">Tags:</span>
-              {availableTags.slice(0, 8).map((tag) => {
+            <div className="mt-2.5 flex items-center justify-center gap-1.5 flex-wrap relative z-10">
+              <span className="text-[11px] text-[#7b7484] font-medium mr-0.5">Quick Tags:</span>
+              {availableTags.slice(0, 6).map((tag) => {
                 const isActive =
                   activeFilter.toLowerCase() === tag.toLowerCase() ||
                   searchTerm.toLowerCase().includes(tag.toLowerCase());
@@ -280,7 +464,7 @@ export function SearchHero({
                   <button
                     key={tag}
                     onClick={() => onFilterSelect(tag)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
                       isActive
                         ? "bg-[#eaddff] text-[#24005b] font-semibold border border-[#d1bcff] shadow-sm"
                         : "bg-[#e5eeff] text-[#494453] hover:bg-[#dce9ff] hover:text-[#0b1c30]"
